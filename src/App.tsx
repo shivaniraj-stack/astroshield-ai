@@ -73,7 +73,7 @@ export const App: React.FC = () => {
   };
 
   const handleSimulateCriticalEvent = () => {
-    const criticalEvent = MOCK_CONJUNCTIONS[0]; // SAT-01 vs DEBRIS-482
+    const criticalEvent = MOCK_CONJUNCTIONS[0];
     setSelectedConjunctionModal(criticalEvent);
 
     const criticalAlert: MissionAlert = {
@@ -156,15 +156,16 @@ export const App: React.FC = () => {
 
             <TelemetryMetrics />
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              <div className="lg:col-span-8">
+            {/* Main Dashboard Layout: xl:grid-cols-12 ensures clean horizontal breathing room */}
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+              <div className="xl:col-span-8 w-full">
                 <OrbitalEarthView
                   onSelectConjunction={(id) => handleSelectConjunctionById(id)}
                   onOpenSimulator={(satId) => handleOpenSimulator(satId)}
                 />
               </div>
 
-              <div className="lg:col-span-4 space-y-4">
+              <div className="xl:col-span-4 w-full space-y-4">
                 <div className="p-5 rounded-2xl glass-panel border border-cyan-500/30 space-y-4">
                   <div className="flex items-center justify-between">
                     <h3 className="font-heading font-bold text-sm text-white">
@@ -183,19 +184,19 @@ export const App: React.FC = () => {
                       <div
                         key={conj.id}
                         onClick={() => setSelectedConjunctionModal(conj)}
-                        className={`p-3 rounded-xl border cursor-pointer transition ${
+                        className={`p-3.5 rounded-xl border cursor-pointer transition ${
                           conj.riskLevel === 'HIGH' || conj.riskLevel === 'CRITICAL'
                             ? 'bg-red-950/30 border-red-500/40 hover:border-red-400'
                             : 'bg-space-900 border-slate-800 hover:border-cyan-500/40'
                         }`}
                       >
-                        <div className="flex items-center justify-between text-xs font-telemetry">
-                          <span className="font-bold text-white">{conj.primaryObject.name}</span>
-                          <span className="text-slate-400">TCA: {conj.tcaDisplay}</span>
+                        <div className="flex items-center justify-between text-xs font-telemetry gap-2">
+                          <span className="font-bold text-white truncate">{conj.primaryObject.name}</span>
+                          <span className="text-slate-400 shrink-0">TCA: {conj.tcaDisplay}</span>
                         </div>
-                        <div className="flex items-center justify-between text-[11px] font-telemetry mt-1">
-                          <span className="text-slate-400">vs {conj.secondaryObject.name}</span>
-                          <span className={`font-bold ${
+                        <div className="flex items-center justify-between text-[11px] font-telemetry mt-1.5 gap-2">
+                          <span className="text-slate-400 truncate">vs {conj.secondaryObject.name}</span>
+                          <span className={`font-bold shrink-0 ${
                             conj.riskLevel === 'HIGH' ? 'text-red-400' : 'text-amber-400'
                           }`}>
                             {conj.missDistanceKm} km ({conj.riskLevel})
@@ -211,10 +212,10 @@ export const App: React.FC = () => {
                   className="p-5 rounded-2xl glass-panel-interactive border border-cyan-400/40 cursor-pointer space-y-2"
                 >
                   <div className="flex items-center gap-2 text-cyan-400 font-telemetry text-xs font-bold">
-                    <Bot className="w-4 h-4 text-cyan-400" />
+                    <Bot className="w-4 h-4 text-cyan-400 shrink-0" />
                     <span>ASTROSHIELD COPILOT READY</span>
                   </div>
-                  <p className="text-xs text-slate-300">
+                  <p className="text-xs text-slate-300 leading-relaxed">
                     "I have identified 3 conjunctions requiring attention. SAT-01 is within the operational review window."
                   </p>
                   <span className="text-[11px] font-telemetry text-cyan-300 font-bold block pt-1">
@@ -224,18 +225,18 @@ export const App: React.FC = () => {
 
                 <div 
                   onClick={() => setActiveTab('iot')}
-                  className="p-4 rounded-2xl glass-panel-interactive border border-emerald-500/30 cursor-pointer flex items-center justify-between"
+                  className="p-4 rounded-2xl glass-panel-interactive border border-emerald-500/30 cursor-pointer flex items-center justify-between gap-3"
                 >
-                  <div className="flex items-center gap-3 font-telemetry">
-                    <div className="p-2 rounded-xl bg-emerald-950 text-emerald-400 border border-emerald-500/40">
+                  <div className="flex items-center gap-3 font-telemetry min-w-0">
+                    <div className="p-2 rounded-xl bg-emerald-950 text-emerald-400 border border-emerald-500/40 shrink-0">
                       <Cpu className="w-4 h-4" />
                     </div>
-                    <div>
-                      <span className="font-bold text-white text-xs block">PHYSICAL SATELLITE (ESP32)</span>
-                      <span className="text-[10px] text-emerald-400">Ground Station Link: ONLINE (24.8°C)</span>
+                    <div className="min-w-0">
+                      <span className="font-bold text-white text-xs block truncate">PHYSICAL SATELLITE (ESP32)</span>
+                      <span className="text-[10px] text-emerald-400 block truncate">Ground Station Link: ONLINE (24.8°C)</span>
                     </div>
                   </div>
-                  <span className="text-cyan-400 text-xs">View →</span>
+                  <span className="text-cyan-400 text-xs shrink-0">View →</span>
                 </div>
               </div>
             </div>
@@ -278,14 +279,14 @@ export const App: React.FC = () => {
                 />
               </div>
             ) : (
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                <div className="lg:col-span-8">
+              <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+                <div className="xl:col-span-7">
                   <AICopilot
                     onOpenSimulator={(satId) => handleOpenSimulator(satId)}
                     onSelectConjunction={(id) => handleSelectConjunctionById(id)}
                   />
                 </div>
-                <div className="lg:col-span-4">
+                <div className="xl:col-span-5">
                   <AvoidanceSimulator
                     onGenerateReport={() => setActiveTab('reports')}
                   />
@@ -341,7 +342,7 @@ export const App: React.FC = () => {
         />
       )}
 
-      {/* Authentic Mission Control Telemetry Panel (Collapsible) */}
+      {/* Authentic Mission Control Telemetry Panel */}
       <MissionControlPanel
         onOpenConjunctionModal={() => handleSelectConjunctionById('conj-01')}
       />
