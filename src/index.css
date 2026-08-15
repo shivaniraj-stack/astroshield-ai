@@ -1,6 +1,4 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
 @layer base {
   body {
@@ -13,123 +11,100 @@
     font-family: 'Outfit', sans-serif;
   }
 
-  .font-telemetry {
+  code, pre, .font-telemetry {
     font-family: 'JetBrains Mono', monospace;
   }
 }
 
-/* Custom Utilities for Glassmorphism & Space Glows */
-@layer utilities {
-  .glass-panel {
-    background: rgba(6, 11, 24, 0.75);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(0, 240, 255, 0.2);
-  }
-
-  .glass-panel-interactive {
-    background: rgba(6, 11, 24, 0.75);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(0, 240, 255, 0.2);
-    transition: all 0.3s ease;
-  }
-
-  .glass-panel-interactive:hover {
-    background: rgba(10, 18, 38, 0.85);
-    border-color: rgba(0, 240, 255, 0.5);
-    box-shadow: 0 0 25px rgba(0, 240, 255, 0.2);
-  }
-
-  .glass-panel-danger {
-    background: rgba(24, 6, 11, 0.75);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(239, 68, 68, 0.3);
-  }
-
-  .text-glow-cyan {
-    text-shadow: 0 0 15px rgba(0, 240, 255, 0.6);
-  }
-
-  .text-glow-amber {
-    text-shadow: 0 0 15px rgba(245, 158, 11, 0.6);
-  }
-
-  .shadow-glow-cyan {
-    box-shadow: 0 0 30px rgba(0, 240, 255, 0.25);
-  }
+/* Glassmorphism & Custom HUD Panels */
+.glass-panel {
+  background: rgba(11, 19, 41, 0.65);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(56, 189, 248, 0.18);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
 }
 
-/* Preserved Existing Orbital Rotation Keyframes */
-@keyframes orbitRotate {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+.glass-panel-interactive {
+  background: rgba(11, 19, 41, 0.65);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(56, 189, 248, 0.18);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  transition: all 0.25s ease-in-out;
 }
 
-.animate-orbit-rotate {
-  animation: orbitRotate 20s linear infinite;
+.glass-panel-interactive:hover {
+  background: rgba(15, 23, 42, 0.85);
+  border-color: rgba(56, 189, 248, 0.45);
+  box-shadow: 0 0 20px rgba(0, 240, 255, 0.25);
+  transform: translateY(-2px);
 }
 
-/* NEW: Futuristic HUD Scroll-Reveal Pop-in Effect */
-.scroll-reveal {
-  opacity: 0;
-  transform: translateY(25px) scale(0.94);
-  transition: opacity 0.45s cubic-bezier(0.16, 1, 0.3, 1),
-              transform 0.45s cubic-bezier(0.16, 1, 0.3, 1);
-  will-change: opacity, transform;
+.glass-panel-danger {
+  background: rgba(23, 10, 15, 0.7);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  box-shadow: 0 0 25px rgba(239, 68, 68, 0.15);
 }
 
-.scroll-reveal.is-revealed {
-  opacity: 1;
-  transform: translateY(0) scale(1);
+.glass-panel-amber {
+  background: rgba(25, 20, 10, 0.7);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  box-shadow: 0 0 25px rgba(245, 158, 11, 0.15);
 }
 
-/* Stagger Delays for Card Groups */
-.stagger-1 {
-  transition-delay: 80ms;
+.glow-cyan {
+  box-shadow: 0 0 15px rgba(0, 240, 255, 0.35);
 }
 
-.stagger-2 {
-  transition-delay: 160ms;
+.glow-red {
+  box-shadow: 0 0 15px rgba(239, 68, 68, 0.45);
 }
 
-.stagger-3 {
-  transition-delay: 240ms;
+.glow-text-cyan {
+  text-shadow: 0 0 12px rgba(0, 240, 255, 0.6);
 }
 
-.stagger-4 {
-  transition-delay: 320ms;
+.glow-text-red {
+  text-shadow: 0 0 12px rgba(239, 68, 68, 0.8);
 }
 
-/* Accessibility: Respect Reduced Motion Preferences */
-@media (prefers-reduced-motion: reduce) {
-  .scroll-reveal {
-    opacity: 1 !important;
-    transform: none !important;
-    transition: none !important;
-  }
+.glow-text-amber {
+  text-shadow: 0 0 12px rgba(245, 158, 11, 0.8);
 }
 
-/* Custom Scrollbar */
+/* Technical Scanline effect for telemetry panels */
+.scanline-overlay {
+  background: linear-gradient(
+    rgba(18, 16, 16, 0) 50%, 
+    rgba(0, 0, 0, 0.25) 50%
+  ), linear-gradient(
+    90deg,
+    rgba(255, 0, 0, 0.03),
+    rgba(0, 255, 0, 0.01),
+    rgba(0, 0, 255, 0.03)
+  );
+  background-size: 100% 3px, 6px 100%;
+  pointer-events: none;
+}
+
+/* Custom Scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #030712;
+  background: rgba(6, 11, 24, 0.8);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #1e293b;
+  background: rgba(56, 189, 248, 0.3);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #00f0ff;
+  background: rgba(0, 240, 255, 0.6);
 }
