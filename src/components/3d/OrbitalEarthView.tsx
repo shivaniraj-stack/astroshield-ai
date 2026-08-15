@@ -252,7 +252,7 @@ export const OrbitalEarthView: React.FC<OrbitalEarthViewProps> = ({
     const domEl = renderer.domElement;
     domEl.addEventListener('click', handleCanvasClick);
 
-    // 6. Native Fullscreen API Change Listener
+    // Native Fullscreen API Change Listener
     const handleFullscreenChange = () => {
       const isFull = !!(
         document.fullscreenElement ||
@@ -280,8 +280,8 @@ export const OrbitalEarthView: React.FC<OrbitalEarthViewProps> = ({
     const animate = () => {
       const elapsed = clock.getElapsedTime();
 
-      // Earth Mesh Y-axis rotation
-      earthMesh.rotation.y = elapsed * 0.08;
+      // Clearly visible continuous Earth Mesh Y-axis rotation (0.25 rad/s)
+      earthMesh.rotation.y = elapsed * 0.25;
       starField.rotation.y = elapsed * 0.003;
 
       controls.update();
