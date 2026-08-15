@@ -43,7 +43,10 @@ export const Navbar: React.FC<NavbarProps> = ({
 }) => {
   const [utcTime, setUtcTime] = useState<string>('');
   const [showProfileMenu, setShowProfileMenu] = useState<boolean>(false);
+  const [isVisible, setIsVisible] = useState<boolean>(true);
+  const [lastScrollY, setLastScrollY] = useState<number>(0);
 
+  // UTC Clock
   useEffect(() => {
     const updateTime = () => {
       const now = new Date();
@@ -58,6 +61,26 @@ export const Navbar: React.FC<NavbarProps> = ({
     return () => clearInterval(interval);
   }, []);
 
+  // Smart Scroll Direction Auto-Hide / Auto-Show Listener
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+
+      if (currentScrollY < 40) {
+        setIsVisible(true);
+      } else if (currentScrollY > lastScrollY && currentScrollY > 60) {
+        setIsVisible(false); // Scrolling DOWN -> Hide Navbar
+      } else if (currentScrollY < lastScrollY) {
+        setIsVisible(true);  // Scrolling UP -> Show Navbar
+      }
+
+      setLastScrollY(currentScrollY);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [lastScrollY]);
+
   const navItems: { id: ViewTab; label: string; icon: React.ReactNode }[] = [
     { id: 'dashboard', label: 'Dashboard', icon: <Activity className="w-4 h-4" /> },
     { id: 'map', label: 'Orbital Map', icon: <Orbit className="w-4 h-4" /> },
@@ -69,42 +92,44 @@ export const Navbar: React.FC<NavbarProps> = ({
   ];
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-40 bg-space-950/80 backdrop-blur-xl border-b border-cyan-500/20 shadow-lg">
+    <header className={`fixed top-0 left-0 right-0 z-40 bg-space-950/80 backdrop-blur-xl border-b border-cyan-500/20 shadow-lg transition-transform duration-300 ease-in-out ${
+      isVisible ? 'translate-y-0' : '-translate-y-full'
+    }`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         
-        {/* Logo */}
+        {/* Logo Branding */}
         <div 
           onClick={() => setActiveTab('dashboard')}
           className="flex items-center gap-3 cursor-pointer group"
         >
-          <div className="relative flex items-center justify-center w-10 h-10 rounded-lg bg-cyan-950/80 border border-cyan-400/40 group-hover:border-cyan-400 group-hover:shadow-[0_0_15px_rgba(0,240,255,0.4)] transition-all">
+          <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-cyan-950/80 border border-cyan-400/40 group-hover:border-cyan-400 group-hover:shadow-[0_0_15px_rgba(0,240,255,0.4)] transition-all">
             <Shield className="w-5 h-5 text-cyan-400 absolute" />
             <Orbit className="w-7 h-7 text-cyan-500/40 animate-orbit-rotate absolute" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-display font-extrabold text-lg tracking-wider bg-gradient-to-r from-white via-cyan-200 to-cyan-400 bg-clip-text text-transparent">
+              <span className="font-heading font-extrabold text-lg tracking-wider bg-gradient-to-r from-white via-cyan-200 to-cyan-400 bg-clip-text text-transparent">
                 ASTROSHIELD
               </span>
-              <span className="text-xs font-telemetry bg-cyan-500/20 text-cyan-400 px-1.5 py-0.5 rounded border border-cyan-500/30">
+              <span className="text-xs font-telemetry bg-cyan-500/20 text-cyan-400 px-1.5 py-0.5 rounded border border-cyan-500/30 font-bold">
                 AI
               </span>
             </div>
-            <p className="text-[10px] text-slate-400 font-mono tracking-tight hidden sm:block">
-              SPACE TRAFFIC MANAGEMENT
+            <p className="text-[10px] text-slate-400 font-telemetry tracking-tight hidden sm:block">
+              SPACE SITUATIONAL AWARENESS
             </p>
           </div>
         </div>
 
         {/* Navigation Tabs */}
-        <nav className="hidden xl:flex items-center gap-1 bg-space-900/90 p-1 rounded-xl border border-cyan-500/15">
+        <nav className="hidden xl:flex items-center gap-1.5 bg-space-900/90 p-1.5 rounded-xl border border-cyan-500/15">
           {navItems.map((item) => {
             const isActive = activeTab === item.id;
             return (
               <button
                 key={item.id}
                 onClick={() => setActiveTab(item.id)}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-telemetry font-bold transition-all duration-200 ${
                   isActive
                     ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/40 shadow-[0_0_10px_rgba(0,240,255,0.2)]'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-space-800/60'
@@ -120,14 +145,14 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* System Status, Master Trigger & User Actions */}
         <div className="flex items-center gap-2 sm:gap-3">
           
-          {/* MASTER HACKATHON TRIGGER BUTTON */}
+          {/* Master Hackathon Trigger */}
           <button
             onClick={onSimulateCriticalEvent}
             className="py-1.5 px-3 rounded-xl bg-gradient-to-r from-red-500 to-amber-500 text-space-950 font-extrabold text-xs hover:opacity-90 flex items-center gap-1.5 shadow-[0_0_15px_rgba(239,68,68,0.4)] animate-pulse transition"
-            title="Trigger End-to-End Critical Collision Demo Sequence"
+            title="Trigger End-to-End Critical Collision Sequence"
           >
             <Zap className="w-3.5 h-3.5 fill-current" />
-            <span className="hidden sm:inline">SIMULATE CRITICAL EVENT</span>
+            <span className="hidden sm:inline">SIMULATE EVENT</span>
             <span className="sm:hidden">SIMULATE</span>
           </button>
 
@@ -137,19 +162,19 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
             </span>
-            <span className="font-semibold text-[11px] tracking-wide">SYSTEM ONLINE</span>
+            <span className="font-bold text-[11px] tracking-wide">ONLINE</span>
           </div>
 
           {/* UTC Clock */}
           <div className="hidden md:flex items-center gap-1.5 text-xs font-telemetry text-cyan-300 bg-space-900/80 px-2.5 py-1 rounded-lg border border-cyan-500/20">
             <Clock className="w-3.5 h-3.5 text-cyan-400" />
-            <span>{utcTime || '14:23:50 UTC'}</span>
+            <span>{utcTime || '14:32:00 UTC'}</span>
           </div>
 
-          {/* Alert Bell Button */}
+          {/* Alert Bell */}
           <button
             onClick={onOpenAlerts}
-            className="relative p-2 rounded-lg bg-space-900/80 border border-cyan-500/20 hover:border-cyan-400/50 text-slate-300 hover:text-cyan-300 transition"
+            className="relative p-2 rounded-xl bg-space-900/80 border border-cyan-500/20 hover:border-cyan-400/50 text-slate-300 hover:text-cyan-300 transition"
             title="Mission Alerts"
           >
             <Bell className="w-4 h-4" />
@@ -163,7 +188,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Demo Mode Toggle */}
           <button
             onClick={() => setDemoMode(!demoMode)}
-            className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-telemetry transition-all border ${
+            className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-telemetry transition-all border ${
               demoMode
                 ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-[0_0_10px_rgba(245,158,11,0.2)]'
                 : 'bg-space-850 text-slate-400 border-slate-700 hover:border-slate-500'
@@ -173,7 +198,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <span>DEMO MODE</span>
           </button>
 
-          {/* User Profile Badge & Dropdown */}
+          {/* User Profile Badge */}
           <div className="relative">
             <button
               onClick={() => setShowProfileMenu(!showProfileMenu)}
@@ -193,7 +218,6 @@ export const Navbar: React.FC<NavbarProps> = ({
               <ChevronDown className="w-3.5 h-3.5 text-slate-400 hidden md:block" />
             </button>
 
-            {/* Profile Dropdown Menu */}
             {showProfileMenu && (
               <div className="absolute right-0 mt-2 w-56 glass-panel p-2 rounded-2xl border border-cyan-500/40 shadow-2xl font-telemetry text-xs space-y-1 z-50 animate-fadeIn">
                 <div className="p-2 border-b border-slate-800">
@@ -219,15 +243,15 @@ export const Navbar: React.FC<NavbarProps> = ({
 
       </div>
 
-      {/* Mobile Nav Drawer Row */}
-      <div className="xl:hidden flex items-center justify-around px-2 py-1.5 bg-space-900/95 border-t border-cyan-500/10 text-xs overflow-x-auto scrollbar-none">
+      {/* Mobile Drawer Row */}
+      <div className="xl:hidden flex items-center justify-around px-2 py-1.5 bg-space-900/95 border-t border-cyan-500/10 text-xs overflow-x-auto scrollbar-none font-telemetry">
         {navItems.map((item) => (
           <button
             key={item.id}
             onClick={() => setActiveTab(item.id)}
-            className={`flex items-center gap-1 px-2.5 py-1 rounded text-xs whitespace-nowrap ${
+            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs whitespace-nowrap ${
               activeTab === item.id
-                ? 'text-cyan-300 bg-cyan-500/20 border border-cyan-500/30'
+                ? 'text-cyan-300 bg-cyan-500/20 border border-cyan-500/30 font-bold'
                 : 'text-slate-400'
             }`}
           >

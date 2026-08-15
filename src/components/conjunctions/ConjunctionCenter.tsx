@@ -4,16 +4,13 @@ import { MOCK_CONJUNCTIONS } from '../../data/mockMissionData';
 import { 
   AlertTriangle, 
   Search, 
-  Zap, 
-  SlidersHorizontal, 
   Clock, 
-  CheckCircle2, 
   ShieldAlert
 } from 'lucide-react';
 
 interface ConjunctionCenterProps {
   onSelectConjunction: (event: ConjunctionEvent) => void;
-  onOpenSimulator: (satelliteId: string) => void;
+  onOpenSimulator: (satId: string) => void;
 }
 
 export const ConjunctionCenter: React.FC<ConjunctionCenterProps> = ({
@@ -26,37 +23,30 @@ export const ConjunctionCenter: React.FC<ConjunctionCenterProps> = ({
   const filteredEvents = MOCK_CONJUNCTIONS.filter((event) => {
     const matchesSearch =
       event.primaryObject.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      event.secondaryObject.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      event.primaryObject.noradId.toString().includes(searchTerm) ||
-      event.secondaryObject.noradId.toString().includes(searchTerm);
-
+      event.secondaryObject.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRisk =
       selectedRiskFilter === 'ALL' || event.riskLevel === selectedRiskFilter;
-
     return matchesSearch && matchesRisk;
   });
 
   const getRiskBadge = (risk: RiskLevel) => {
     switch (risk) {
-      case 'CRITICAL':
       case 'HIGH':
+      case 'CRITICAL':
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-telemetry font-bold bg-red-950/80 text-red-400 border border-red-500/50 shadow-[0_0_12px_rgba(239,68,68,0.3)] animate-pulse">
-            <ShieldAlert className="w-3.5 h-3.5" />
-            HIGH (CRITICAL)
+          <span className="px-2.5 py-1 rounded-lg text-xs font-telemetry font-bold bg-red-950/80 text-red-400 border border-red-500/50 shadow-[0_0_10px_rgba(239,68,68,0.3)]">
+            HIGH RISK
           </span>
         );
       case 'MEDIUM':
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-telemetry font-semibold bg-amber-950/80 text-amber-400 border border-amber-500/50 shadow-[0_0_10px_rgba(245,158,11,0.2)]">
-            <AlertTriangle className="w-3.5 h-3.5" />
+          <span className="px-2.5 py-1 rounded-lg text-xs font-telemetry font-bold bg-amber-950/80 text-amber-300 border border-amber-500/50">
             MEDIUM
           </span>
         );
       default:
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-telemetry font-medium bg-emerald-950/60 text-emerald-400 border border-emerald-500/40">
-            <CheckCircle2 className="w-3.5 h-3.5" />
+          <span className="px-2.5 py-1 rounded-lg text-xs font-telemetry font-bold bg-emerald-950/80 text-emerald-400 border border-emerald-500/50">
             LOW
           </span>
         );
@@ -64,143 +54,146 @@ export const ConjunctionCenter: React.FC<ConjunctionCenterProps> = ({
   };
 
   return (
-    <div className="w-full space-y-6">
+    <div className="w-full space-y-6 sm:space-y-8 animate-fadeInUp">
       
       {/* Header Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 rounded-2xl glass-panel border border-cyan-500/30">
+      <div className="p-6 sm:p-8 rounded-3xl glass-panel border border-cyan-500/30 flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <div className="flex items-center gap-2">
-            <ShieldAlert className="w-6 h-6 text-red-400 animate-pulse" />
-            <h1 className="font-heading font-extrabold text-2xl text-white">
-              CONJUNCTION CENTER
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-red-950 border border-red-500/40 text-red-400">
+              <ShieldAlert className="w-6 h-6 animate-pulse" />
+            </div>
+            <h1 className="font-heading font-extrabold text-2xl sm:text-3xl text-white">
+              CONJUNCTION ANALYSIS CENTER
             </h1>
           </div>
-          <p className="text-sm font-telemetry text-slate-400 mt-1">
-            Real-time SGP4 orbit propagation & close approach risk telemetry.
+          <p className="text-sm font-telemetry text-slate-300 mt-2 leading-relaxed max-w-2xl">
+            Real-time orbital convergence tracking, close-approach assessment, and automated collision probability calculations.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Search Satellite / NORAD ID..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 pr-4 py-2 rounded-xl bg-space-900/90 border border-cyan-500/30 text-xs font-telemetry text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 w-64"
-            />
-          </div>
-
-          <div className="flex items-center gap-1 bg-space-900/80 p-1 rounded-xl border border-slate-800">
-            {['ALL', 'HIGH', 'MEDIUM', 'LOW'].map((filter) => (
-              <button
-                key={filter}
-                onClick={() => setSelectedRiskFilter(filter)}
-                className={`px-3 py-1 rounded-lg text-xs font-telemetry transition ${
-                  selectedRiskFilter === filter
-                    ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/40'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                {filter}
-              </button>
-            ))}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 bg-red-950/40 px-4 py-2 rounded-xl border border-red-500/40 text-red-300 text-xs font-telemetry font-bold shadow-[0_0_15px_rgba(239,68,68,0.2)]">
+            <AlertTriangle className="w-4 h-4 text-red-400 animate-bounce" />
+            <span>3 HIGH RISK EVENTS ACTIVE</span>
           </div>
         </div>
       </div>
 
-      <div className="rounded-2xl glass-panel border border-cyan-500/25 overflow-hidden shadow-2xl">
+      {/* Search & Filter Toolbar */}
+      <div className="p-4 sm:p-6 rounded-2xl glass-panel border border-cyan-500/20 flex flex-col sm:flex-row items-center justify-between gap-4 font-telemetry">
+        <div className="relative w-full sm:w-80">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            placeholder="Search satellite or debris name..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-space-900 border border-cyan-500/30 text-white text-xs placeholder-slate-500 focus:outline-none focus:border-cyan-400 transition"
+          />
+        </div>
+
+        <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto scrollbar-none text-xs">
+          <span className="text-slate-400 font-bold hidden md:inline">FILTER RISK:</span>
+          {['ALL', 'HIGH', 'MEDIUM', 'LOW'].map((risk) => (
+            <button
+              key={risk}
+              onClick={() => setSelectedRiskFilter(risk)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition border ${
+                selectedRiskFilter === risk
+                  ? 'bg-cyan-500/20 text-cyan-300 border-cyan-400/50 shadow-[0_0_10px_rgba(0,240,255,0.2)]'
+                  : 'bg-space-900 text-slate-400 border-slate-800 hover:border-slate-700'
+              }`}
+            >
+              {risk}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Conjunction Telemetry Data Table */}
+      <div className="rounded-3xl glass-panel border border-cyan-500/30 overflow-hidden shadow-2xl">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full text-left border-collapse font-telemetry">
             <thead>
-              <tr className="bg-space-900/90 border-b border-cyan-500/20 text-[11px] font-telemetry text-slate-400 uppercase tracking-wider">
-                <th className="py-4 px-5">OBJECT A (PRIMARY)</th>
-                <th className="py-4 px-5">OBJECT B (SECONDARY)</th>
-                <th className="py-4 px-5">TCA (TIME TO APPROACH)</th>
-                <th className="py-4 px-5">MISS DISTANCE</th>
-                <th className="py-4 px-5">RISK LEVEL</th>
-                <th className="py-4 px-5">STATUS</th>
-                <th className="py-4 px-5 text-right">ACTION</th>
+              <tr className="border-b border-cyan-500/20 bg-space-900/90 text-[11px] text-slate-400 uppercase tracking-wider">
+                <th className="py-4 px-6">PRIMARY OBJECT</th>
+                <th className="py-4 px-6">SECONDARY OBJECT</th>
+                <th className="py-4 px-6">TCA (CLOSEST APPROACH)</th>
+                <th className="py-4 px-6">MISS DISTANCE</th>
+                <th className="py-4 px-6">COLLISION PROB.</th>
+                <th className="py-4 px-6">RISK LEVEL</th>
+                <th className="py-4 px-6 text-right">ACTION</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/80 text-xs font-telemetry">
+            <tbody className="divide-y divide-slate-800/80 text-xs">
               {filteredEvents.map((event) => (
                 <tr
                   key={event.id}
-                  className={`hover:bg-space-850/80 transition-colors ${
-                    event.riskLevel === 'HIGH' || event.riskLevel === 'CRITICAL'
-                      ? 'bg-red-950/10'
-                      : ''
-                  }`}
+                  className="hover:bg-space-850/60 transition group"
                 >
-                  <td className="py-4 px-5">
-                    <div className="font-bold text-white text-sm">
+                  <td className="py-4 px-6">
+                    <span className="font-extrabold text-white block text-sm">
                       {event.primaryObject.name}
-                    </div>
-                    <div className="text-[11px] text-cyan-400/80">
-                      NORAD #{event.primaryObject.noradId} • {event.primaryObject.altitudeKm} km
-                    </div>
-                  </td>
-
-                  <td className="py-4 px-5">
-                    <div className="font-bold text-white text-sm">
-                      {event.secondaryObject.name}
-                    </div>
-                    <div className="text-[11px] text-red-400/80">
-                      NORAD #{event.secondaryObject.noradId} • {event.secondaryObject.type}
-                    </div>
-                  </td>
-
-                  <td className="py-4 px-5">
-                    <div className="flex items-center gap-1.5 text-slate-200 font-semibold">
-                      <Clock className="w-3.5 h-3.5 text-cyan-400" />
-                      <span>{event.tcaDisplay}</span>
-                    </div>
-                    <div className="text-[10px] text-slate-400">
-                      P(Collision): {event.collisionProbability}
-                    </div>
-                  </td>
-
-                  <td className="py-4 px-5">
-                    <div className="font-extrabold text-sm text-white">
-                      {event.missDistanceKm} km
-                    </div>
-                    <div className="text-[10px] text-slate-400">
-                      Radial Δ: {event.radialSeparationKm} km
-                    </div>
-                  </td>
-
-                  <td className="py-4 px-5">
-                    {getRiskBadge(event.riskLevel)}
-                  </td>
-
-                  <td className="py-4 px-5">
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-space-900 border border-slate-700 text-slate-300">
-                      {event.status}
+                    </span>
+                    <span className="text-[10px] text-slate-400">
+                      NORAD #{event.primaryObject.noradId} • {event.primaryObject.type}
                     </span>
                   </td>
 
-                  <td className="py-4 px-5 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <button
-                        onClick={() => onSelectConjunction(event)}
-                        className="py-1.5 px-3 rounded-xl bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 hover:bg-cyan-500/30 font-medium text-xs flex items-center gap-1 transition"
-                      >
-                        <Zap className="w-3.5 h-3.5 text-cyan-400" />
-                        <span>ANALYZE</span>
-                      </button>
+                  <td className="py-4 px-6">
+                    <span className="font-bold text-red-300 block text-sm">
+                      {event.secondaryObject.name}
+                    </span>
+                    <span className="text-[10px] text-slate-400">
+                      NORAD #{event.secondaryObject.noradId} • {event.secondaryObject.type}
+                    </span>
+                  </td>
 
-                      {event.primaryObject.type !== 'DEBRIS' && (
-                        <button
-                          onClick={() => onOpenSimulator(event.primaryObject.id)}
-                          className="py-1.5 px-3 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 font-medium text-xs flex items-center gap-1 transition"
-                        >
-                          <SlidersHorizontal className="w-3.5 h-3.5 text-amber-400" />
-                          <span>SIMULATE</span>
-                        </button>
-                      )}
+                  <td className="py-4 px-6">
+                    <div className="flex items-center gap-1.5 text-cyan-300 font-bold">
+                      <Clock className="w-3.5 h-3.5 text-cyan-400" />
+                      <span>{event.tcaDisplay}</span>
                     </div>
+                    <span className="text-[10px] text-slate-400">TCA: {event.tcaHours}h</span>
+                  </td>
+
+                  <td className="py-4 px-6">
+                    <span className={`font-extrabold text-sm ${
+                      event.riskLevel === 'HIGH' ? 'text-red-400' : 'text-amber-300'
+                    }`}>
+                      {event.missDistanceKm} km
+                    </span>
+                    <span className="text-[10px] text-slate-400 block">Relative sep.</span>
+                  </td>
+
+                  <td className="py-4 px-6">
+                    <span className={`font-extrabold text-sm ${
+                      event.collisionProbabilityVal > 0.001 ? 'text-red-400' : 'text-amber-300'
+                    }`}>
+                      {event.collisionProbability}
+                    </span>
+                    <span className="text-[10px] text-slate-400 block">Prob. Score</span>
+                  </td>
+
+                  <td className="py-4 px-6">
+                    {getRiskBadge(event.riskLevel)}
+                  </td>
+
+                  <td className="py-4 px-6 text-right space-x-2">
+                    <button
+                      onClick={() => onSelectConjunction(event)}
+                      className="px-3.5 py-1.5 rounded-xl bg-cyan-500/20 text-cyan-300 border border-cyan-400/40 hover:bg-cyan-500/30 text-xs font-bold transition"
+                    >
+                      Analyze
+                    </button>
+
+                    <button
+                      onClick={() => onOpenSimulator(event.primaryObject.id)}
+                      className="px-3.5 py-1.5 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 text-xs font-bold transition"
+                    >
+                      Simulate
+                    </button>
                   </td>
                 </tr>
               ))}
