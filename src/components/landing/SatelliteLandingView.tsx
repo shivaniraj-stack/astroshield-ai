@@ -30,7 +30,6 @@ const generateEarthTexture = (): THREE.CanvasTexture => {
     ctx.ellipse(cx, cy, rx, ry, Math.PI / 12, 0, Math.PI * 2);
     ctx.fill();
 
-    // Rough coastal details
     for (let i = 0; i < 8; i++) {
       const angle = (i / 8) * Math.PI * 2;
       const subX = cx + Math.cos(angle) * (rx * 0.7);
@@ -45,7 +44,7 @@ const generateEarthTexture = (): THREE.CanvasTexture => {
   drawLandmass(500, 320, 220, 140, '#1b4332'); // North America
   drawLandmass(650, 650, 130, 200, '#2d6a4f'); // South America
   drawLandmass(1250, 300, 350, 160, '#2d6a4f'); // Eurasia
-  drawLandmass(1100, 520, 180, 210, '#b5838d'); // Africa (Savannah/Desert)
+  drawLandmass(1100, 520, 180, 210, '#b5838d'); // Africa
   drawLandmass(1650, 680, 140, 110, '#d4a373'); // Australia
   drawLandmass(1400, 420, 120, 90, '#1b4332');  // SE Asia
 
@@ -101,12 +100,12 @@ export const SatelliteLandingView: React.FC<SatelliteLandingViewProps> = ({
     const width = container.clientWidth;
     const height = container.clientHeight;
 
-    // WebGL Scene Setup
+    // WebGL Scene Setup (Full Viewport 100dvh)
     const scene = new THREE.Scene();
     scene.fog = new THREE.FogExp2(0x030712, 0.008);
 
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
-    camera.position.set(0, 0.5, 10.5);
+    camera.position.set(0, 1.0, 12.0);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(width, height);
@@ -118,18 +117,18 @@ export const SatelliteLandingView: React.FC<SatelliteLandingViewProps> = ({
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
     controls.rotateSpeed = 0.6;
-    controls.minDistance = 5.0;
-    controls.maxDistance = 25.0;
-    controls.target.set(0, 0, 0);
+    controls.minDistance = 6.0;
+    controls.maxDistance = 30.0;
+    controls.target.set(0, -2.0, 0);
 
     // Deep-Space Starfield
     const starGeo = new THREE.BufferGeometry();
     const starCoords: number[] = [];
-    for (let i = 0; i < 2200; i++) {
+    for (let i = 0; i < 2500; i++) {
       starCoords.push(
-        (Math.random() - 0.5) * 300,
-        (Math.random() - 0.5) * 300,
-        (Math.random() - 0.5) * 300
+        (Math.random() - 0.5) * 350,
+        (Math.random() - 0.5) * 350,
+        (Math.random() - 0.5) * 350
       );
     }
     starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starCoords, 3));
@@ -138,19 +137,19 @@ export const SatelliteLandingView: React.FC<SatelliteLandingViewProps> = ({
     scene.add(starField);
 
     // Realistic Sun Lighting (Day/Night Terminator)
-    const ambientLight = new THREE.AmbientLight(0x0b172a, 1.2);
+    const ambientLight = new THREE.AmbientLight(0x0b172a, 1.4);
     scene.add(ambientLight);
 
-    const sunLight = new THREE.DirectionalLight(0xffffff, 3.8);
-    sunLight.position.set(16, 10, 14);
+    const sunLight = new THREE.DirectionalLight(0xffffff, 4.0);
+    sunLight.position.set(18, 12, 16);
     scene.add(sunLight);
 
     const oceanGlowLight = new THREE.DirectionalLight(0x00f0ff, 1.5);
-    oceanGlowLight.position.set(-16, -6, -10);
+    oceanGlowLight.position.set(-18, -8, -12);
     scene.add(oceanGlowLight);
 
-    // 1. Photorealistic 3D Earth Globe
-    const earthRadius = 3.6;
+    // 1. Large Photorealistic 3D Earth Globe (Positioned in Lower Viewport Safe Zone)
+    const earthRadius = 5.2;
     const earthTexture = generateEarthTexture();
     const earthGeo = new THREE.SphereGeometry(earthRadius, 64, 64);
     const earthMat = new THREE.MeshPhongMaterial({
@@ -164,7 +163,7 @@ export const SatelliteLandingView: React.FC<SatelliteLandingViewProps> = ({
 
     // 2. Independent Cloud Layer Sphere
     const cloudTexture = generateCloudTexture();
-    const cloudGeo = new THREE.SphereGeometry(earthRadius * 1.025, 64, 64);
+    const cloudGeo = new THREE.SphereGeometry(earthRadius * 1.02, 64, 64);
     const cloudMat = new THREE.MeshPhongMaterial({
       map: cloudTexture,
       transparent: true,
@@ -175,7 +174,7 @@ export const SatelliteLandingView: React.FC<SatelliteLandingViewProps> = ({
     scene.add(cloudMesh);
 
     // 3. Thin Atmospheric Rim Halo
-    const atmosGeo = new THREE.SphereGeometry(earthRadius * 1.05, 64, 64);
+    const atmosGeo = new THREE.SphereGeometry(earthRadius * 1.045, 64, 64);
     const atmosMat = new THREE.MeshBasicMaterial({
       color: 0x00f0ff,
       transparent: true,
@@ -242,24 +241,12 @@ export const SatelliteLandingView: React.FC<SatelliteLandingViewProps> = ({
 
     scene.add(satelliteGroup);
 
-    // Tilted Orbital Trajectory Curve
-    const orbitPoints: THREE.Vector3[] = [];
-    const orbitRadius = 4.8;
-    for (let i = 0; i <= 128; i++) {
-      const theta = (i / 128) * Math.PI * 2;
-      orbitPoints.push(
-        new THREE.Vector3(
-          Math.cos(theta) * orbitRadius,
-          Math.sin(theta) * 1.6,
-          Math.sin(theta) * orbitRadius
-        )
-      );
-    }
-    const orbitGeo = new THREE.BufferGeometry().setFromPoints(orbitPoints);
+    // Dynamic Orbital Trajectory Line
+    const orbitGeo = new THREE.BufferGeometry();
     const orbitMat = new THREE.LineBasicMaterial({
       color: 0x38bdf8,
       transparent: true,
-      opacity: 0.4,
+      opacity: 0.45,
     });
     const orbitLine = new THREE.Line(orbitGeo, orbitMat);
     scene.add(orbitLine);
@@ -298,25 +285,48 @@ export const SatelliteLandingView: React.FC<SatelliteLandingViewProps> = ({
     domEl.addEventListener('mousemove', handleMouseMove);
     domEl.addEventListener('click', handleCanvasClick);
 
-    // Frame Animation Loop
+    // DUAL-MOTION ANIMATION ENGINE
     let clock = new THREE.Clock();
     let animId: number;
 
     const animate = () => {
       const elapsed = clock.getElapsedTime();
 
-      // Earth & Cloud Axis Rotations
-      earthMesh.rotation.y = elapsed * 0.06;
-      cloudMesh.rotation.y = elapsed * 0.09;
-      starField.rotation.y = elapsed * 0.003;
+      // Motion 1: Earth & Cloud Self-Axis Rotation
+      earthMesh.rotation.y = elapsed * 0.05;
+      cloudMesh.rotation.y = elapsed * 0.08;
+      starField.rotation.y = elapsed * 0.002;
 
-      // Satellite continuous orbital revolution around Earth
-      const orbitTheta = elapsed * 0.45;
-      satelliteGroup.position.x = Math.cos(orbitTheta) * orbitRadius;
-      satelliteGroup.position.z = Math.sin(orbitTheta) * orbitRadius;
-      satelliteGroup.position.y = Math.sin(orbitTheta) * 1.6;
+      // Motion 2: Earth Scene Orbital Position Translation (Lower Viewport Arc)
+      const sceneOrbitTheta = elapsed * 0.12; // Slow 45-second cinematic loop
+      const earthX = Math.sin(sceneOrbitTheta) * 3.8;
+      const earthY = -5.4 + Math.cos(sceneOrbitTheta * 0.5) * 1.0;
+      const earthZ = -3.5 + Math.cos(sceneOrbitTheta) * 1.5;
 
+      earthMesh.position.set(earthX, earthY, earthZ);
+      cloudMesh.position.set(earthX, earthY, earthZ);
+      atmosMesh.position.set(earthX, earthY, earthZ);
+
+      // Satellite continuous orbital revolution around moving Earth
+      const satTheta = elapsed * 0.45;
+      const satOrbitR = 6.8;
+
+      satelliteGroup.position.x = earthX + Math.cos(satTheta) * satOrbitR;
+      satelliteGroup.position.z = earthZ + Math.sin(satTheta) * satOrbitR;
+      satelliteGroup.position.y = earthY + Math.sin(satTheta) * 2.2;
       satelliteGroup.rotation.y = elapsed * 0.5;
+
+      // Update Dynamic Orbit Trajectory Line around Earth's Position
+      const orbitPts: THREE.Vector3[] = [];
+      for (let i = 0; i <= 128; i++) {
+        const t = (i / 128) * Math.PI * 2;
+        orbitPts.push(new THREE.Vector3(
+          earthX + Math.cos(t) * satOrbitR,
+          earthY + Math.sin(t) * 2.2,
+          earthZ + Math.sin(t) * satOrbitR
+        ));
+      }
+      orbitGeo.setFromPoints(orbitPts);
 
       controls.update();
 
@@ -397,7 +407,7 @@ export const SatelliteLandingView: React.FC<SatelliteLandingViewProps> = ({
         </div>
       </div>
 
-      {/* Landing Text Header (Center) */}
+      {/* Landing Text Header (Clean Safe Zone Center) */}
       <div className="relative z-10 flex flex-col items-center justify-center text-center my-auto pointer-events-none">
         <div className={`transition-all duration-300 transform ${
           isHovered ? 'scale-105 opacity-100' : 'scale-100 opacity-90'
