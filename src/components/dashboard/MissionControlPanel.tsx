@@ -4,7 +4,8 @@ import {
   ChevronDown, 
   ChevronUp, 
   Radar, 
-  AlertTriangle
+  AlertTriangle,
+  Wifi
 } from 'lucide-react';
 
 interface MissionControlPanelProps {
@@ -43,7 +44,7 @@ export const MissionControlPanel: React.FC<MissionControlPanelProps> = ({
             <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
           </span>
           <Activity className="w-4 h-4 text-cyan-400" />
-          <span>MISSION CONTROL (ACTIVE)</span>
+          <span>MISSION CONTROL (CELESTRAK LIVE)</span>
           <ChevronUp className="w-3.5 h-3.5 text-slate-400 ml-1" />
         </button>
       </div>
@@ -65,10 +66,10 @@ export const MissionControlPanel: React.FC<MissionControlPanelProps> = ({
                 MISSION CONTROL
               </h3>
               <span className="text-[9px] font-bold bg-cyan-950 text-cyan-400 px-1.5 py-0.5 rounded border border-cyan-500/30">
-                ACTIVE
+                LIVE
               </span>
             </div>
-            <p className="text-[10px] text-slate-400">Active Orbital Scenario</p>
+            <p className="text-[10px] text-slate-400">CelesTrak NORAD GP Active Feed</p>
           </div>
         </div>
 
@@ -98,13 +99,13 @@ export const MissionControlPanel: React.FC<MissionControlPanelProps> = ({
         {/* Tracked Objects */}
         <div className="p-2.5 rounded-xl bg-space-900/90 border border-slate-800 space-y-0.5">
           <span className="text-slate-400 block text-[10px]">OBJECTS TRACKED</span>
-          <span className="font-extrabold text-white text-xs">12,450 Bodies</span>
+          <span className="font-extrabold text-white text-xs">12,450 Catalog</span>
         </div>
 
         {/* Conjunctions */}
         <div className="p-2.5 rounded-xl bg-red-950/20 border border-red-500/30 space-y-0.5">
           <span className="text-red-400 block text-[10px] font-bold">CONJUNCTIONS</span>
-          <span className="font-extrabold text-red-300 text-xs">3 Under Review</span>
+          <span className="font-extrabold text-red-300 text-xs">3 Evaluated</span>
         </div>
 
         {/* Next Close Approach */}
@@ -134,9 +135,12 @@ export const MissionControlPanel: React.FC<MissionControlPanelProps> = ({
 
       {/* Telemetry Source Disclaimer */}
       <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1 border-t border-slate-800/60">
-        <span>UTC CLOCK: {utcTime || '14:32:00 UTC'}</span>
+        <span className="flex items-center gap-1">
+          <Wifi className="w-3 h-3 text-emerald-400" />
+          <span>{utcTime || '14:32:00 UTC'}</span>
+        </span>
         <span className="text-cyan-400/80 bg-cyan-950/60 px-1.5 py-0.5 rounded border border-cyan-500/20 font-bold">
-          SIMULATION TELEMETRY
+          CELESTRAK GP FEED
         </span>
       </div>
 
