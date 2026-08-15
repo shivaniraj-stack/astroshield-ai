@@ -89,6 +89,7 @@ export const App: React.FC = () => {
     setAlerts((prev) => [criticalAlert, ...prev]);
   };
 
+  // CHANGE 1 FLOW: LANDING PAGE -> EXISTING LOGIN PAGE -> DASHBOARD
   if (authStep === 'landing') {
     return (
       <SatelliteLandingView
@@ -156,7 +157,7 @@ export const App: React.FC = () => {
 
             <TelemetryMetrics />
 
-            {/* Main Dashboard Layout: xl:grid-cols-12 ensures clean horizontal breathing room */}
+            {/* Main Dashboard Layout */}
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
               <div className="xl:col-span-8 w-full">
                 <OrbitalEarthView

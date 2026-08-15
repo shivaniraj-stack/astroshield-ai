@@ -20,8 +20,9 @@ export const SatelliteLandingView: React.FC<SatelliteLandingViewProps> = ({
     const width = container.clientWidth;
     const height = container.clientHeight;
 
+    // WebGL Scene & Camera Setup
     const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x030712, 0.015);
+    scene.fog = new THREE.FogExp2(0x030712, 0.012);
 
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
     camera.position.set(0, 1.5, 8);
@@ -31,6 +32,22 @@ export const SatelliteLandingView: React.FC<SatelliteLandingViewProps> = ({
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     container.appendChild(renderer.domElement);
 
+    // Deep Space Starfield
+    const starGeo = new THREE.BufferGeometry();
+    const starCoords: number[] = [];
+    for (let i = 0; i < 1500; i++) {
+      starCoords.push(
+        (Math.random() - 0.5) * 200,
+        (Math.random() - 0.5) * 200,
+        (Math.random() - 0.5) * 200
+      );
+    }
+    starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starCoords, 3));
+    const starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.7, transparent: true, opacity: 0.8 });
+    const starField = new THREE.Points(starGeo, starMat);
+    scene.add(starField);
+
+    // Lighting
     const ambientLight = new THREE.AmbientLight(0x0f172a, 1.5);
     scene.add(ambientLight);
 
@@ -42,6 +59,7 @@ export const SatelliteLandingView: React.FC<SatelliteLandingViewProps> = ({
     amberLight.position.set(-10, -5, -5);
     scene.add(amberLight);
 
+    // 1. Rotating 3D Earth
     const earthRadius = 6.0;
     const earthGeo = new THREE.SphereGeometry(earthRadius, 64, 64);
     const earthMat = new THREE.MeshPhongMaterial({
@@ -54,6 +72,7 @@ export const SatelliteLandingView: React.FC<SatelliteLandingViewProps> = ({
     earthMesh.position.set(0, -7.5, -2);
     scene.add(earthMesh);
 
+    // Atmospheric Glow Halo
     const atmosGeo = new THREE.SphereGeometry(earthRadius * 1.05, 64, 64);
     const atmosMat = new THREE.MeshBasicMaterial({
       color: 0x00f0ff,
@@ -65,6 +84,7 @@ export const SatelliteLandingView: React.FC<SatelliteLandingViewProps> = ({
     atmosMesh.position.set(0, -7.5, -2);
     scene.add(atmosMesh);
 
+    // 2. Prominent Interactive 3D Satellite Model
     const satelliteGroup = new THREE.Group();
 
     const bodyGeo = new THREE.BoxGeometry(1.2, 1.2, 1.8);
@@ -118,6 +138,7 @@ export const SatelliteLandingView: React.FC<SatelliteLandingViewProps> = ({
     beaconMesh.position.set(0, 0, 1.0);
     satelliteGroup.add(beaconMesh);
 
+    // Glowing Aura Ring around Satellite
     const ringGeo = new THREE.RingGeometry(2.4, 2.55, 64);
     const ringMat = new THREE.MeshBasicMaterial({
       color: 0x00f0ff,
@@ -132,6 +153,7 @@ export const SatelliteLandingView: React.FC<SatelliteLandingViewProps> = ({
     satelliteGroup.position.set(0, 0.5, 0);
     scene.add(satelliteGroup);
 
+    // Orbital Path Curve
     const orbitPoints: THREE.Vector3[] = [];
     for (let i = 0; i <= 128; i++) {
       const theta = (i / 128) * Math.PI * 2;
@@ -152,6 +174,7 @@ export const SatelliteLandingView: React.FC<SatelliteLandingViewProps> = ({
     const orbitLine = new THREE.Line(orbitGeo, orbitMat);
     scene.add(orbitLine);
 
+    // Mouse Interaction & Raycasting
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
 
@@ -192,19 +215,23 @@ export const SatelliteLandingView: React.FC<SatelliteLandingViewProps> = ({
     domEl.addEventListener('mousemove', handleMouseMove);
     domEl.addEventListener('click', handleCanvasClick);
 
+    // Animation Render Loop
     let clock = new THREE.Clock();
     let animId: number;
 
     const animate = () => {
       const elapsed = clock.getElapsedTime();
 
+      // Satellite Floating Animation
       satelliteGroup.rotation.y = elapsed * 0.3;
       satelliteGroup.rotation.x = Math.sin(elapsed * 0.5) * 0.15;
       satelliteGroup.position.y = 0.5 + Math.sin(elapsed * 1.2) * 0.15;
 
       earthMesh.rotation.y = elapsed * 0.05;
       ringMesh.rotation.z = elapsed * 0.8;
+      starField.rotation.y = elapsed * 0.01;
 
+      // Glow Intensity on Hover
       if (isHovered) {
         ringMat.opacity = 0.85 + Math.sin(elapsed * 6) * 0.15;
         beaconMat.color.setHex(0x00f0ff);
@@ -212,6 +239,7 @@ export const SatelliteLandingView: React.FC<SatelliteLandingViewProps> = ({
         ringMat.opacity = 0.4;
       }
 
+      // Smooth Camera Zoom Transition on Click
       if (isZooming) {
         camera.position.z -= 0.15;
         camera.position.y -= 0.02;
@@ -249,8 +277,11 @@ export const SatelliteLandingView: React.FC<SatelliteLandingViewProps> = ({
 
   return (
     <div className="relative w-full h-screen overflow-hidden bg-space-950 flex flex-col justify-between p-6 sm:p-10 select-none">
+      
+      {/* 3D WebGL Canvas */}
       <div ref={mountRef} className="absolute inset-0 z-0" />
 
+      {/* Top Header Branding */}
       <div className="relative z-10 flex items-center justify-between pointer-events-none">
         <div className="flex items-center gap-3">
           <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-cyan-950/80 border border-cyan-400/50 shadow-[0_0_20px_rgba(0,240,255,0.4)]">
@@ -277,6 +308,7 @@ export const SatelliteLandingView: React.FC<SatelliteLandingViewProps> = ({
         </div>
       </div>
 
+      {/* Landing Text Header (Center) */}
       <div className="relative z-10 flex flex-col items-center justify-center text-center my-auto pointer-events-none">
         <div className={`transition-all duration-300 transform ${
           isHovered ? 'scale-105 opacity-100' : 'scale-100 opacity-90'
@@ -286,13 +318,14 @@ export const SatelliteLandingView: React.FC<SatelliteLandingViewProps> = ({
           </h1>
           
           <p className="font-heading text-base sm:text-xl text-cyan-300 font-semibold mt-2 tracking-wide">
-            AI-Powered Orbital Safety & Space Situational Awareness
+            AI-POWERED ORBITAL SAFETY & SPACE SITUATIONAL AWARENESS
           </p>
 
           <p className="text-xs sm:text-sm text-slate-300 font-sans max-w-xl mx-auto mt-2 italic">
             "Protecting satellites. Predicting risks. Securing tomorrow's missions."
           </p>
 
+          {/* Click Satellite CTA */}
           <div className="mt-8 pointer-events-auto">
             <button
               onClick={() => {
@@ -307,7 +340,7 @@ export const SatelliteLandingView: React.FC<SatelliteLandingViewProps> = ({
             >
               <div className="flex items-center gap-3">
                 <Orbit className="w-5 h-5 text-cyan-400 group-hover:text-space-950 animate-orbit-rotate" />
-                <span>CLICK TO ENTER MISSION CONTROL</span>
+                <span>CLICK THE SATELLITE TO ENTER</span>
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </div>
             </button>
@@ -315,10 +348,12 @@ export const SatelliteLandingView: React.FC<SatelliteLandingViewProps> = ({
         </div>
       </div>
 
+      {/* Footer Instructions */}
       <div className="relative z-10 flex items-center justify-between text-xs font-telemetry text-slate-400 border-t border-slate-800/80 pt-3 pointer-events-none">
         <span>🛰️ TAP OR CLICK THE SATELLITE TO INITIALIZE ACCESS</span>
         <span className="hidden sm:inline">ESA / NASA / NORAD TELEMETRY SIMULATION</span>
       </div>
+
     </div>
   );
 };

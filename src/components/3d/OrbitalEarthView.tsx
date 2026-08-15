@@ -5,18 +5,17 @@ import { MOCK_SATELLITES, MOCK_DEBRIS } from '../../data/mockMissionData';
 import { 
   Eye, 
   Layers, 
-  RotateCcw, 
-  Target, 
+  Maximize2, 
+  Minimize2, 
   AlertTriangle, 
   Zap, 
-  SlidersHorizontal,
-  X
+  Compass, 
+  Crosshair
 } from 'lucide-react';
 
 interface OrbitalEarthViewProps {
   onSelectConjunction?: (eventId: string) => void;
-  onOpenSimulator?: (satelliteId: string) => void;
-  highlightEventId?: string | null;
+  onOpenSimulator?: (satId: string) => void;
 }
 
 export const OrbitalEarthView: React.FC<OrbitalEarthViewProps> = ({
@@ -25,22 +24,9 @@ export const OrbitalEarthView: React.FC<OrbitalEarthViewProps> = ({
 }) => {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const [selectedObject, setSelectedObject] = useState<SpaceObject | null>(MOCK_SATELLITES[0]);
-  const [showSatellites, setShowSatellites] = useState<boolean>(true);
   const [showDebris, setShowDebris] = useState<boolean>(true);
   const [showOrbits, setShowOrbits] = useState<boolean>(true);
-  const [isRotating] = useState<boolean>(true);
-
-  // References for Three.js state
-  const sceneRef = useRef<THREE.Scene | null>(null);
-  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
-  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
-  const earthMeshRef = useRef<THREE.Mesh | null>(null);
-  const satellitesGroupRef = useRef<THREE.Group | null>(null);
-  const debrisGroupRef = useRef<THREE.Group | null>(null);
-  const orbitsGroupRef = useRef<THREE.Group | null>(null);
-  const collisionMarkerRef = useRef<THREE.Mesh | null>(null);
-
-  const allObjects = [...MOCK_SATELLITES, ...MOCK_DEBRIS];
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
 
   useEffect(() => {
     const container = mountRef.current;
@@ -49,194 +35,206 @@ export const OrbitalEarthView: React.FC<OrbitalEarthViewProps> = ({
     const width = container.clientWidth;
     const height = container.clientHeight;
 
-    // Scene
+    // WebGL 3D Scene Setup
     const scene = new THREE.Scene();
-    sceneRef.current = scene;
-    scene.fog = new THREE.FogExp2(0x030712, 0.012);
+    scene.fog = new THREE.FogExp2(0x030712, 0.015);
 
-    // Camera
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
-    camera.position.set(0, 5, 12);
-    cameraRef.current = camera;
+    camera.position.set(0, 4, 11);
 
-    // Renderer
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.shadowMap.enabled = true;
-    rendererRef.current = renderer;
-
     container.appendChild(renderer.domElement);
 
-    // Lighting
-    const ambientLight = new THREE.AmbientLight(0x1e293b, 1.8);
+    // Starfield Background
+    const starGeo = new THREE.BufferGeometry();
+    const starCoords: number[] = [];
+    for (let i = 0; i < 1800; i++) {
+      starCoords.push(
+        (Math.random() - 0.5) * 180,
+        (Math.random() - 0.5) * 180,
+        (Math.random() - 0.5) * 180
+      );
+    }
+    starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starCoords, 3));
+    const starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.6, transparent: true, opacity: 0.75 });
+    const starField = new THREE.Points(starGeo, starMat);
+    scene.add(starField);
+
+    // Realistic Lighting
+    const ambientLight = new THREE.AmbientLight(0x0b1329, 2.0);
     scene.add(ambientLight);
 
-    const sunLight = new THREE.DirectionalLight(0x00f0ff, 2.5);
-    sunLight.position.set(10, 10, 10);
+    const sunLight = new THREE.DirectionalLight(0x00f0ff, 3.5);
+    sunLight.position.set(12, 8, 10);
     scene.add(sunLight);
 
-    const backLight = new THREE.DirectionalLight(0x3b82f6, 1.2);
-    backLight.position.set(-10, -5, -10);
-    scene.add(backLight);
+    const fillLight = new THREE.DirectionalLight(0x38bdf8, 1.2);
+    fillLight.position.set(-12, -4, -10);
+    scene.add(fillLight);
 
-    // 1. Procedural 3D Earth Globe
+    // 1. High-Detail 3D Earth Globe
     const earthRadius = 3.2;
     const earthGeo = new THREE.SphereGeometry(earthRadius, 64, 64);
-
-    const canvas = document.createElement('canvas');
-    canvas.width = 1024;
-    canvas.height = 512;
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      ctx.fillStyle = '#060f26';
-      ctx.fillRect(0, 0, 1024, 512);
-
-      ctx.fillStyle = '#13355c';
-      ctx.strokeStyle = '#38bdf8';
-      ctx.lineWidth = 2;
-
-      ctx.fillRect(150, 100, 200, 140);
-      ctx.fillRect(250, 260, 120, 180);
-      ctx.fillRect(500, 80, 360, 180);
-      ctx.fillRect(480, 220, 160, 200);
-      ctx.fillRect(750, 320, 140, 110);
-
-      ctx.strokeStyle = 'rgba(56, 189, 248, 0.15)';
-      ctx.lineWidth = 1;
-      for (let x = 0; x <= 1024; x += 64) {
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, 512);
-        ctx.stroke();
-      }
-      for (let y = 0; y <= 512; y += 64) {
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(1024, y);
-        ctx.stroke();
-      }
-    }
-
-    const earthTexture = new THREE.CanvasTexture(canvas);
     const earthMat = new THREE.MeshPhongMaterial({
-      map: earthTexture,
-      shininess: 25,
-      specular: new THREE.Color(0x00f0ff),
-      emissive: new THREE.Color(0x030d22),
+      color: 0x071b3e,
+      specular: 0x00f0ff,
+      shininess: 35,
+      emissive: 0x020a1c,
     });
-
     const earthMesh = new THREE.Mesh(earthGeo, earthMat);
     scene.add(earthMesh);
-    earthMeshRef.current = earthMesh;
 
-    // 2. Atmosphere Glow Rim
-    const atmosphereGeo = new THREE.SphereGeometry(earthRadius * 1.08, 64, 64);
-    const atmosphereMat = new THREE.MeshBasicMaterial({
+    // Grid wireframe lines on Earth surface
+    const gridGeo = new THREE.SphereGeometry(earthRadius * 1.002, 32, 16);
+    const gridMat = new THREE.MeshBasicMaterial({
+      color: 0x00f0ff,
+      wireframe: true,
+      transparent: true,
+      opacity: 0.12,
+    });
+    const gridMesh = new THREE.Mesh(gridGeo, gridMat);
+    earthMesh.add(gridMesh);
+
+    // Atmospheric Glow Mesh
+    const atmosGeo = new THREE.SphereGeometry(earthRadius * 1.06, 64, 64);
+    const atmosMat = new THREE.MeshBasicMaterial({
       color: 0x00f0ff,
       transparent: true,
-      opacity: 0.15,
+      opacity: 0.22,
       side: THREE.BackSide,
     });
-    const atmosphereMesh = new THREE.Mesh(atmosphereGeo, atmosphereMat);
-    scene.add(atmosphereMesh);
+    const atmosMesh = new THREE.Mesh(atmosGeo, atmosMat);
+    scene.add(atmosMesh);
 
-    // Groups
-    const satellitesGroup = new THREE.Group();
-    const debrisGroup = new THREE.Group();
-    const orbitsGroup = new THREE.Group();
+    // 2. Active Satellites Objects & Orbital Paths
+    const satelliteMeshes: { object: SpaceObject; mesh: THREE.Mesh; orbitLine: THREE.Line }[] = [];
 
-    scene.add(satellitesGroup);
-    scene.add(debrisGroup);
-    scene.add(orbitsGroup);
-
-    satellitesGroupRef.current = satellitesGroup;
-    debrisGroupRef.current = debrisGroup;
-    orbitsGroupRef.current = orbitsGroup;
-
-    // Objects & Orbits
-    const objectMeshes: { mesh: THREE.Mesh; data: SpaceObject; angle: number; speed: number; orbitR: number }[] = [];
-
-    allObjects.forEach((obj, idx) => {
-      const isSat = obj.type !== 'DEBRIS';
-      const orbitR = earthRadius + (obj.altitudeKm / 500) * 0.8;
-      const angleSpeed = 0.005 + (idx % 3) * 0.002;
-      const inclination = (obj.inclinationDeg * Math.PI) / 180;
-
-      const points: THREE.Vector3[] = [];
-      const numSegments = 128;
-      for (let i = 0; i <= numSegments; i++) {
-        const theta = (i / numSegments) * Math.PI * 2;
-        const x = orbitR * Math.cos(theta);
-        const z = orbitR * Math.sin(theta);
-        const y = Math.sin(theta) * Math.sin(inclination) * 0.8;
-        points.push(new THREE.Vector3(x, y, z));
+    // Generate 35 Orbital Debris Objects
+    const generateDebrisObjects = (): SpaceObject[] => {
+      const debrisList: SpaceObject[] = [...MOCK_DEBRIS];
+      for (let i = 4; i <= 35; i++) {
+        debrisList.push({
+          id: `deb-${i}`,
+          noradId: 50000 + i,
+          name: `DEB-${5000 + i}`,
+          type: 'DEBRIS',
+          altitudeKm: 500 + (i * 18) % 600,
+          velocityKms: 7.6 + (i % 5) * 0.05,
+          inclinationDeg: 20 + (i * 7) % 80,
+          latitude: (i * 12) % 90 - 45,
+          longitude: (i * 23) % 360 - 180,
+          riskLevel: i % 4 === 0 ? 'HIGH' : 'LOW',
+          status: 'MONITORED',
+          orbitRadius: 4.2 + (i % 8) * 0.3,
+          orbitColor: '#ef4444',
+          designator: `1999-025${String.fromCharCode(65 + (i % 26))}`,
+          country: 'UNKNOWN',
+        });
       }
-      const orbitGeo = new THREE.BufferGeometry().setFromPoints(points);
-      const orbitMat = new THREE.LineBasicMaterial({
-        color: isSat ? 0x38bdf8 : 0xef4444,
+      return debrisList;
+    };
+
+    const extendedDebris = generateDebrisObjects();
+
+    // Render Satellites
+    MOCK_SATELLITES.forEach((sat, idx) => {
+      const orbitR = 4.2 + idx * 0.45;
+      const tilt = (sat.inclinationDeg * Math.PI) / 180;
+
+      // Orbit Ring
+      const pts: THREE.Vector3[] = [];
+      for (let i = 0; i <= 96; i++) {
+        const theta = (i / 96) * Math.PI * 2;
+        pts.push(new THREE.Vector3(Math.cos(theta) * orbitR, Math.sin(theta) * Math.sin(tilt) * orbitR * 0.3, Math.sin(theta) * orbitR));
+      }
+      const oGeo = new THREE.BufferGeometry().setFromPoints(pts);
+      const oMat = new THREE.LineBasicMaterial({
+        color: selectedObject?.id === sat.id ? 0x00f0ff : 0x0284c7,
         transparent: true,
-        opacity: isSat ? 0.35 : 0.45,
+        opacity: selectedObject?.id === sat.id ? 0.9 : 0.4,
       });
-      const orbitLine = new THREE.Line(orbitGeo, orbitMat);
-      orbitsGroup.add(orbitLine);
+      const oLine = new THREE.Line(oGeo, oMat);
+      scene.add(oLine);
 
-      const objGeo = isSat
-        ? new THREE.OctahedronGeometry(0.12)
-        : new THREE.TetrahedronGeometry(0.1);
-      const objMat = new THREE.MeshBasicMaterial({
-        color: new THREE.Color(obj.orbitColor),
+      // Satellite Mesh
+      const sGeo = new THREE.SphereGeometry(0.12, 16, 16);
+      const sMat = new THREE.MeshStandardMaterial({
+        color: 0x00f0ff,
+        emissive: 0x00f0ff,
+        emissiveIntensity: selectedObject?.id === sat.id ? 0.9 : 0.5,
       });
-      const objMesh = new THREE.Mesh(objGeo, objMat);
-      objMesh.userData = { spaceObject: obj };
+      const sMesh = new THREE.Mesh(sGeo, sMat);
+      sMesh.userData = { spaceObject: sat };
+      scene.add(sMesh);
 
-      if (isSat) {
-        satellitesGroup.add(objMesh);
-      } else {
-        debrisGroup.add(objMesh);
+      satelliteMeshes.push({ object: sat, mesh: sMesh, orbitLine: oLine });
+    });
+
+    // Render 35 Debris Objects
+    const debrisMeshes: { object: SpaceObject; mesh: THREE.Mesh; orbitLine: THREE.Line }[] = [];
+
+    extendedDebris.forEach((deb, idx) => {
+      const orbitR = 4.0 + (idx % 10) * 0.35;
+      const tilt = (deb.inclinationDeg * Math.PI) / 180;
+
+      const pts: THREE.Vector3[] = [];
+      for (let i = 0; i <= 64; i++) {
+        const theta = (i / 64) * Math.PI * 2;
+        pts.push(new THREE.Vector3(Math.cos(theta) * orbitR, Math.sin(theta) * Math.sin(tilt) * orbitR * 0.4, Math.sin(theta) * orbitR));
       }
-
-      objectMeshes.push({
-        mesh: objMesh,
-        data: obj,
-        angle: (idx * Math.PI) / 3,
-        speed: angleSpeed,
-        orbitR: orbitR,
+      const oGeo = new THREE.BufferGeometry().setFromPoints(pts);
+      const oMat = new THREE.LineBasicMaterial({
+        color: 0xef4444,
+        transparent: true,
+        opacity: 0.25,
       });
+      const oLine = new THREE.Line(oGeo, oMat);
+      scene.add(oLine);
+
+      const dGeo = new THREE.SphereGeometry(0.06, 12, 12);
+      const dMat = new THREE.MeshBasicMaterial({ color: 0xef4444 });
+      const dMesh = new THREE.Mesh(dGeo, dMat);
+      dMesh.userData = { spaceObject: deb };
+      scene.add(dMesh);
+
+      debrisMeshes.push({ object: deb, mesh: dMesh, orbitLine: oLine });
     });
 
-    // Collision Conjunction Pulse Marker Ring
-    const collisionGeo = new THREE.RingGeometry(0.25, 0.35, 32);
-    const collisionMat = new THREE.MeshBasicMaterial({
+    // 3. Convergence Line for Collision Conjunction (SAT-01 vs DEBRIS-482)
+    const convergenceGeo = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(0, 0, 0),
+      new THREE.Vector3(0, 0, 0),
+    ]);
+    const convergenceMat = new THREE.LineDashedMaterial({
       color: 0xef4444,
-      side: THREE.DoubleSide,
-      transparent: true,
-      opacity: 0.8,
+      dashSize: 0.2,
+      gapSize: 0.1,
     });
-    const collisionMesh = new THREE.Mesh(collisionGeo, collisionMat);
-    const conjR = earthRadius + 0.85;
-    collisionMesh.position.set(conjR * Math.cos(1.2), 0.4, conjR * Math.sin(1.2));
-    collisionMesh.lookAt(camera.position);
-    scene.add(collisionMesh);
-    collisionMarkerRef.current = collisionMesh;
+    const convergenceLine = new THREE.Line(convergenceGeo, convergenceMat);
+    scene.add(convergenceLine);
 
-    // Raycaster
+    // Mouse Interaction Raycasting
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
 
-    const handleCanvasClick = (event: MouseEvent) => {
+    const handleCanvasClick = (e: MouseEvent) => {
       const rect = renderer.domElement.getBoundingClientRect();
-      mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-      mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
 
       raycaster.setFromCamera(mouse, camera);
-      const targets = [...satellitesGroup.children, ...debrisGroup.children];
-      const intersects = raycaster.intersectObjects(targets);
+      const allTargets = [
+        ...satelliteMeshes.map((m) => m.mesh),
+        ...debrisMeshes.map((m) => m.mesh),
+      ];
+      const intersects = raycaster.intersectObjects(allTargets);
 
       if (intersects.length > 0) {
-        const clickedObj = intersects[0].object.userData.spaceObject as SpaceObject;
-        if (clickedObj) {
-          setSelectedObject(clickedObj);
+        const obj = intersects[0].object.userData.spaceObject as SpaceObject;
+        if (obj) {
+          setSelectedObject(obj);
         }
       }
     };
@@ -244,71 +242,60 @@ export const OrbitalEarthView: React.FC<OrbitalEarthViewProps> = ({
     const domEl = renderer.domElement;
     domEl.addEventListener('click', handleCanvasClick);
 
-    // Orbit Controls simulation via drag
-    let isDragging = false;
-    let previousMousePosition = { x: 0, y: 0 };
-
-    const onMouseDown = (e: MouseEvent) => {
-      isDragging = true;
-      previousMousePosition = { x: e.clientX, y: e.clientY };
-    };
-
-    const onMouseMove = (e: MouseEvent) => {
-      if (!isDragging) return;
-      const deltaX = e.clientX - previousMousePosition.x;
-      const deltaY = e.clientY - previousMousePosition.y;
-
-      if (earthMesh) {
-        earthMesh.rotation.y += deltaX * 0.005;
-        earthMesh.rotation.x += deltaY * 0.005;
-      }
-      satellitesGroup.rotation.y += deltaX * 0.005;
-      debrisGroup.rotation.y += deltaX * 0.005;
-      orbitsGroup.rotation.y += deltaX * 0.005;
-
-      previousMousePosition = { x: e.clientX, y: e.clientY };
-    };
-
-    const onMouseUp = () => {
-      isDragging = false;
-    };
-
-    const onWheel = (e: WheelEvent) => {
-      camera.position.z += e.deltaY * 0.008;
-      camera.position.z = Math.max(5, Math.min(25, camera.position.z));
-    };
-
-    domEl.addEventListener('mousedown', onMouseDown);
-    window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseup', onMouseUp);
-    domEl.addEventListener('wheel', onWheel);
-
     // Animation Loop
     let clock = new THREE.Clock();
-    let animationFrameId: number;
+    let animId: number;
 
     const animate = () => {
-      if (isRotating && earthMesh) {
-        earthMesh.rotation.y += 0.0015;
-      }
+      const elapsed = clock.getElapsedTime();
 
-      objectMeshes.forEach((item) => {
-        item.angle += item.speed * 0.5;
-        const inc = (item.data.inclinationDeg * Math.PI) / 180;
-        const x = item.orbitR * Math.cos(item.angle);
-        const z = item.orbitR * Math.sin(item.angle);
-        const y = Math.sin(item.angle) * Math.sin(inc) * 0.8;
-        item.mesh.position.set(x, y, z);
+      // Earth rotation
+      earthMesh.rotation.y = elapsed * 0.08;
+      starField.rotation.y = elapsed * 0.005;
+
+      // Move Satellites along Orbital Trajectories
+      satelliteMeshes.forEach(({ object, mesh }, idx) => {
+        const orbitR = 4.2 + idx * 0.45;
+        const tilt = (object.inclinationDeg * Math.PI) / 180;
+        const speed = 0.4 + idx * 0.08;
+        const theta = elapsed * speed + idx;
+
+        mesh.position.x = Math.cos(theta) * orbitR;
+        mesh.position.y = Math.sin(theta) * Math.sin(tilt) * orbitR * 0.3;
+        mesh.position.z = Math.sin(theta) * orbitR;
+
+        mesh.visible = true;
       });
 
-      if (collisionMesh) {
-        const scale = 1 + Math.sin(clock.getElapsedTime() * 4) * 0.2;
-        collisionMesh.scale.set(scale, scale, scale);
-        collisionMesh.lookAt(camera.position);
+      // Move Debris along Orbital Trajectories
+      debrisMeshes.forEach(({ object, mesh, orbitLine }, idx) => {
+        const orbitR = 4.0 + (idx % 10) * 0.35;
+        const tilt = (object.inclinationDeg * Math.PI) / 180;
+        const speed = 0.5 + (idx % 7) * 0.06;
+        const theta = elapsed * speed + idx * 0.5;
+
+        mesh.position.x = Math.cos(theta) * orbitR;
+        mesh.position.y = Math.sin(theta) * Math.sin(tilt) * orbitR * 0.4;
+        mesh.position.z = Math.sin(theta) * orbitR;
+
+        mesh.visible = showDebris;
+        orbitLine.visible = showDebris && showOrbits;
+      });
+
+      // Update Convergence Line between SAT-01 and DEBRIS-482
+      if (satelliteMeshes[0] && debrisMeshes[0]) {
+        const satPos = satelliteMeshes[0].mesh.position;
+        const debPos = debrisMeshes[0].mesh.position;
+
+        const positions = convergenceGeo.attributes.position as THREE.BufferAttribute;
+        positions.setXYZ(0, satPos.x, satPos.y, satPos.z);
+        positions.setXYZ(1, debPos.x, debPos.y, debPos.z);
+        positions.needsUpdate = true;
+        convergenceLine.computeLineDistances();
       }
 
       renderer.render(scene, camera);
-      animationFrameId = requestAnimationFrame(animate);
+      animId = requestAnimationFrame(animate);
     };
 
     animate();
@@ -325,211 +312,139 @@ export const OrbitalEarthView: React.FC<OrbitalEarthViewProps> = ({
     window.addEventListener('resize', handleResize);
 
     return () => {
-      cancelAnimationFrame(animationFrameId);
+      cancelAnimationFrame(animId);
       domEl.removeEventListener('click', handleCanvasClick);
-      domEl.removeEventListener('mousedown', onMouseDown);
-      window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('mouseup', onMouseUp);
-      domEl.removeEventListener('wheel', onWheel);
       window.removeEventListener('resize', handleResize);
       if (container.contains(domEl)) {
         container.removeChild(domEl);
       }
     };
-  }, [isRotating]);
-
-  useEffect(() => {
-    if (satellitesGroupRef.current) satellitesGroupRef.current.visible = showSatellites;
-    if (debrisGroupRef.current) debrisGroupRef.current.visible = showDebris;
-    if (orbitsGroupRef.current) orbitsGroupRef.current.visible = showOrbits;
-  }, [showSatellites, showDebris, showOrbits]);
-
-  const resetCamera = () => {
-    if (cameraRef.current) {
-      cameraRef.current.position.set(0, 5, 12);
-      cameraRef.current.lookAt(0, 0, 0);
-    }
-  };
-
-  const focusSat01 = () => {
-    if (cameraRef.current) {
-      cameraRef.current.position.set(2, 3, 7);
-      const sat01 = MOCK_SATELLITES[0];
-      setSelectedObject(sat01);
-    }
-  };
+  }, [showDebris, showOrbits, selectedObject]);
 
   return (
-    <div className="relative w-full h-[calc(100vh-5rem)] rounded-2xl overflow-hidden glass-panel border border-cyan-500/30">
+    <div className={`relative w-full rounded-3xl glass-panel border border-cyan-500/30 overflow-hidden shadow-2xl transition-all ${
+      isFullscreen ? 'fixed inset-0 z-50 rounded-none border-none' : 'h-[600px]'
+    }`}>
       
       {/* 3D WebGL Canvas */}
       <div ref={mountRef} className="w-full h-full cursor-grab active:cursor-grabbing" />
 
-      {/* Title */}
-      <div className="absolute top-4 left-4 z-10 flex flex-col gap-2 pointer-events-none">
-        <div className="bg-space-950/80 backdrop-blur-md px-3.5 py-2 rounded-xl border border-cyan-500/30 flex items-center gap-3">
-          <div className="p-1.5 rounded-lg bg-cyan-500/20 text-cyan-400">
-            <Eye className="w-4 h-4 animate-pulse" />
-          </div>
-          <div>
-            <h2 className="font-heading font-bold text-sm text-white">ORBITAL MAP VIEW</h2>
-            <p className="text-[11px] font-telemetry text-cyan-400/80">3D REAL-TIME TRACKING ENGINE</p>
-          </div>
+      {/* Top Left Toolbar Controls */}
+      <div className="absolute top-4 left-4 z-10 flex flex-wrap items-center gap-2 font-telemetry text-xs">
+        <div className="bg-space-950/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-cyan-500/30 flex items-center gap-2 text-cyan-300">
+          <Eye className="w-4 h-4 text-cyan-400" />
+          <span className="font-bold">3D ORBIT VIEWER</span>
         </div>
-      </div>
-
-      {/* Map Control Toolbar */}
-      <div className="absolute top-4 right-4 z-10 flex items-center gap-2 bg-space-950/85 backdrop-blur-md p-1.5 rounded-xl border border-cyan-500/30">
-        <button
-          onClick={() => setShowSatellites(!showSatellites)}
-          className={`px-2.5 py-1.5 rounded-lg text-xs font-telemetry flex items-center gap-1.5 transition ${
-            showSatellites ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30' : 'text-slate-400 hover:text-white'
-          }`}
-        >
-          <Layers className="w-3.5 h-3.5" />
-          <span>Satellites</span>
-        </button>
 
         <button
           onClick={() => setShowDebris(!showDebris)}
-          className={`px-2.5 py-1.5 rounded-lg text-xs font-telemetry flex items-center gap-1.5 transition ${
-            showDebris ? 'bg-red-500/20 text-red-300 border border-red-500/30' : 'text-slate-400 hover:text-white'
+          className={`px-3 py-1.5 rounded-xl border font-bold transition flex items-center gap-1.5 ${
+            showDebris
+              ? 'bg-red-950/80 text-red-300 border-red-500/40 shadow-[0_0_10px_rgba(239,68,68,0.2)]'
+              : 'bg-space-900/80 text-slate-400 border-slate-700'
           }`}
         >
           <Layers className="w-3.5 h-3.5" />
-          <span>Debris</span>
+          <span>DEBRIS (35)</span>
         </button>
 
         <button
           onClick={() => setShowOrbits(!showOrbits)}
-          className={`px-2.5 py-1.5 rounded-lg text-xs font-telemetry flex items-center gap-1.5 transition ${
-            showOrbits ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'text-slate-400 hover:text-white'
+          className={`px-3 py-1.5 rounded-xl border font-bold transition flex items-center gap-1.5 ${
+            showOrbits
+              ? 'bg-cyan-950/80 text-cyan-300 border-cyan-400/40'
+              : 'bg-space-900/80 text-slate-400 border-slate-700'
           }`}
         >
-          <SlidersHorizontal className="w-3.5 h-3.5" />
-          <span>Orbits</span>
-        </button>
-
-        <div className="w-[1px] h-5 bg-slate-800 my-auto" />
-
-        <button
-          onClick={focusSat01}
-          className="px-2.5 py-1.5 rounded-lg text-xs font-telemetry bg-red-500/20 text-red-300 border border-red-500/40 hover:bg-red-500/30 flex items-center gap-1"
-          title="Focus High-Risk Conjunction (SAT-01)"
-        >
-          <Target className="w-3.5 h-3.5 text-red-400 animate-pulse" />
-          <span>SAT-01 Focus</span>
-        </button>
-
-        <button
-          onClick={resetCamera}
-          className="p-1.5 rounded-lg text-slate-400 hover:text-cyan-300 hover:bg-space-800 transition"
-          title="Reset Camera View"
-        >
-          <RotateCcw className="w-4 h-4" />
+          <Compass className="w-3.5 h-3.5" />
+          <span>ORBIT TRAJECTORIES</span>
         </button>
       </div>
 
-      {/* Selected Object Inspector Panel */}
+      {/* Top Right Controls & Fullscreen */}
+      <div className="absolute top-4 right-4 z-10 flex items-center gap-2 font-telemetry text-xs">
+        <div className="bg-space-950/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-cyan-500/20 text-slate-300 flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+          <span>LIVE RENDER</span>
+        </div>
+
+        <button
+          onClick={() => setIsFullscreen(!isFullscreen)}
+          className="p-2 rounded-xl bg-space-900/90 border border-cyan-500/30 text-slate-300 hover:text-cyan-300 transition"
+          title="Toggle Fullscreen"
+        >
+          {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+        </button>
+      </div>
+
+      {/* Object Inspector Overlay (Bottom Right) */}
       {selectedObject && (
-        <div className="absolute bottom-4 right-4 z-20 w-80 sm:w-96 glass-panel p-5 rounded-2xl border border-cyan-500/40 shadow-2xl animate-fadeIn">
-          <div className="flex items-start justify-between border-b border-slate-800 pb-3">
+        <div className="absolute bottom-4 right-4 z-10 w-72 sm:w-80 glass-panel p-4 rounded-2xl border border-cyan-500/40 shadow-2xl font-telemetry text-xs space-y-3 animate-fadeIn">
+          <div className="flex items-center justify-between border-b border-cyan-500/20 pb-2">
+            <div className="flex items-center gap-2">
+              <Crosshair className="w-4 h-4 text-cyan-400 animate-pulse" />
+              <span className="font-bold text-white text-sm truncate">{selectedObject.name}</span>
+            </div>
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase ${
+              selectedObject.type === 'DEBRIS'
+                ? 'bg-red-950/80 text-red-400 border-red-500/40'
+                : 'bg-cyan-950/80 text-cyan-400 border-cyan-500/40'
+            }`}>
+              {selectedObject.type}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 text-[11px]">
             <div>
-              <span className={`text-[10px] font-telemetry font-bold px-2 py-0.5 rounded border uppercase ${
-                selectedObject.type === 'DEBRIS'
-                  ? 'bg-red-950/60 text-red-400 border-red-500/40'
-                  : 'bg-cyan-950/60 text-cyan-400 border-cyan-500/40'
-              }`}>
-                {selectedObject.type}
-              </span>
-              <h3 className="font-heading font-extrabold text-lg text-white mt-1">
-                {selectedObject.name}
-              </h3>
-              <p className="text-xs font-telemetry text-slate-400">
-                NORAD ID: #{selectedObject.noradId} | {selectedObject.designator}
-              </p>
+              <span className="text-slate-400 block text-[10px]">NORAD ID</span>
+              <span className="font-bold text-white">#{selectedObject.noradId}</span>
             </div>
-            <button
-              onClick={() => setSelectedObject(null)}
-              className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-space-800"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3 my-4 text-xs font-telemetry">
-            <div className="p-2.5 rounded-xl bg-space-900/80 border border-slate-800">
+            <div>
               <span className="text-slate-400 block text-[10px]">ALTITUDE</span>
-              <span className="text-white font-bold text-sm">{selectedObject.altitudeKm} km</span>
+              <span className="font-bold text-cyan-300">{selectedObject.altitudeKm} km</span>
             </div>
-            <div className="p-2.5 rounded-xl bg-space-900/80 border border-slate-800">
+            <div>
               <span className="text-slate-400 block text-[10px]">VELOCITY</span>
-              <span className="text-white font-bold text-sm">{selectedObject.velocityKms} km/s</span>
+              <span className="font-bold text-white">{selectedObject.velocityKms} km/s</span>
             </div>
-            <div className="p-2.5 rounded-xl bg-space-900/80 border border-slate-800">
+            <div>
               <span className="text-slate-400 block text-[10px]">INCLINATION</span>
-              <span className="text-white font-bold text-sm">{selectedObject.inclinationDeg}°</span>
-            </div>
-            <div className="p-2.5 rounded-xl bg-space-900/80 border border-slate-800">
-              <span className="text-slate-400 block text-[10px]">RISK LEVEL</span>
-              <span className={`font-bold text-sm ${
-                selectedObject.riskLevel === 'HIGH' ? 'text-red-400' : selectedObject.riskLevel === 'MEDIUM' ? 'text-amber-400' : 'text-emerald-400'
-              }`}>
-                {selectedObject.riskLevel}
-              </span>
+              <span className="font-bold text-white">{selectedObject.inclinationDeg}°</span>
             </div>
           </div>
 
-          {selectedObject.id === 'sat-01' && (
-            <div className="p-3 rounded-xl bg-red-950/40 border border-red-500/50 mb-4 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="w-5 h-5 text-red-400 animate-bounce" />
-                <div>
-                  <p className="text-xs font-bold text-red-300">ACTIVE CONJUNCTION RISK</p>
-                  <p className="text-[11px] text-slate-300 font-telemetry">DEBRIS-482 in 18h 24m (14.2 km)</p>
-                </div>
-              </div>
-            </div>
-          )}
+          <div className="pt-2 border-t border-slate-800 flex items-center justify-between">
+            <span className={`font-bold ${
+              selectedObject.riskLevel === 'HIGH' ? 'text-red-400' : 'text-emerald-400'
+            }`}>
+              Risk Level: {selectedObject.riskLevel}
+            </span>
 
-          <div className="flex gap-2">
-            {onSelectConjunction && (
-              <button
-                onClick={() => onSelectConjunction('conj-01')}
-                className="flex-1 py-2 px-3 rounded-xl bg-cyan-500/20 text-cyan-300 border border-cyan-400/40 hover:bg-cyan-500/30 text-xs font-medium flex items-center justify-center gap-1.5 transition"
-              >
-                <Zap className="w-3.5 h-3.5 text-cyan-400" />
-                <span>Analyze Risk</span>
-              </button>
-            )}
-
-            {onOpenSimulator && selectedObject.type !== 'DEBRIS' && (
+            {onOpenSimulator && selectedObject.type === 'PAYLOAD' && (
               <button
                 onClick={() => onOpenSimulator(selectedObject.id)}
-                className="flex-1 py-2 px-3 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-400/40 hover:bg-amber-500/30 text-xs font-medium flex items-center justify-center gap-1.5 transition"
+                className="px-3 py-1 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 text-[11px] font-bold transition flex items-center gap-1"
               >
-                <SlidersHorizontal className="w-3.5 h-3.5 text-amber-400" />
-                <span>Simulate Maneuver</span>
+                <Zap className="w-3 h-3 text-amber-400" />
+                <span>Simulate Deflection</span>
               </button>
             )}
           </div>
         </div>
       )}
 
-      <div className="absolute bottom-4 left-4 z-10 hidden sm:flex items-center gap-4 bg-space-950/85 backdrop-blur-md px-3.5 py-2 rounded-xl border border-cyan-500/20 text-xs font-telemetry text-slate-400">
-        <div className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(56,189,248,0.8)]"></span>
-          <span>Satellite Payload</span>
+      {/* Primary Convergence Alert Card (Bottom Left) */}
+      <div 
+        onClick={() => onSelectConjunction && onSelectConjunction('conj-01')}
+        className="absolute bottom-4 left-4 z-10 p-3 rounded-2xl bg-red-950/80 backdrop-blur-md border border-red-500/50 hover:border-red-400 cursor-pointer flex items-center gap-3 font-telemetry text-xs shadow-[0_0_20px_rgba(239,68,68,0.3)] transition"
+      >
+        <AlertTriangle className="w-5 h-5 text-red-400 animate-bounce shrink-0" />
+        <div>
+          <span className="text-[10px] text-red-400 font-bold block uppercase">
+            ACTIVE CONJUNCTION VECTOR
+          </span>
+          <span className="font-bold text-white">SAT-01 vs DEBRIS-482 (14.2 km)</span>
         </div>
-        <div className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]"></span>
-          <span>Space Debris</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping"></span>
-          <span className="text-red-400 font-bold">Conjunction Point</span>
-        </div>
-        <span className="text-slate-500 text-[10px]">Drag to rotate • Scroll to zoom</span>
       </div>
 
     </div>
