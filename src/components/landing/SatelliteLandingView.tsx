@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { Shield, Orbit, ArrowRight } from 'lucide-react';
 
 interface SatelliteLandingViewProps {
@@ -20,52 +21,62 @@ export const SatelliteLandingView: React.FC<SatelliteLandingViewProps> = ({
     const width = container.clientWidth;
     const height = container.clientHeight;
 
-    // WebGL Scene & Camera Setup
+    // 1. WebGL 3D Scene Setup (Full Viewport 100dvh)
     const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x030712, 0.012);
+    scene.fog = new THREE.FogExp2(0x030712, 0.01);
 
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
-    camera.position.set(0, 1.5, 8);
+    camera.position.set(0, 1.2, 8.5);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     container.appendChild(renderer.domElement);
 
-    // Deep Space Starfield
+    // 2. OrbitControls for Interactive Mouse/Touch Dragging around Scene
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.rotateSpeed = 0.6;
+    controls.zoomSpeed = 0.8;
+    controls.minDistance = 4.5;
+    controls.maxDistance = 20.0;
+    controls.target.set(0, 0, 0);
+
+    // 3. Dense 2,000+ Deep Space Starfield
     const starGeo = new THREE.BufferGeometry();
     const starCoords: number[] = [];
-    for (let i = 0; i < 1500; i++) {
+    for (let i = 0; i < 2000; i++) {
       starCoords.push(
-        (Math.random() - 0.5) * 200,
-        (Math.random() - 0.5) * 200,
-        (Math.random() - 0.5) * 200
+        (Math.random() - 0.5) * 250,
+        (Math.random() - 0.5) * 250,
+        (Math.random() - 0.5) * 250
       );
     }
     starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starCoords, 3));
-    const starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.7, transparent: true, opacity: 0.8 });
+    const starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.7, transparent: true, opacity: 0.85 });
     const starField = new THREE.Points(starGeo, starMat);
     scene.add(starField);
 
     // Lighting
-    const ambientLight = new THREE.AmbientLight(0x0f172a, 1.5);
+    const ambientLight = new THREE.AmbientLight(0x0f172a, 1.8);
     scene.add(ambientLight);
 
-    const cyanSun = new THREE.DirectionalLight(0x00f0ff, 3.0);
+    const cyanSun = new THREE.DirectionalLight(0x00f0ff, 3.2);
     cyanSun.position.set(10, 10, 10);
     scene.add(cyanSun);
 
-    const amberLight = new THREE.DirectionalLight(0xf59e0b, 1.5);
+    const amberLight = new THREE.DirectionalLight(0xf59e0b, 1.6);
     amberLight.position.set(-10, -5, -5);
     scene.add(amberLight);
 
-    // 1. Rotating 3D Earth
+    // 4. Rotating 3D Earth Globe
     const earthRadius = 6.0;
     const earthGeo = new THREE.SphereGeometry(earthRadius, 64, 64);
     const earthMat = new THREE.MeshPhongMaterial({
       color: 0x071530,
       specular: 0x00f0ff,
-      shininess: 30,
+      shininess: 35,
       emissive: 0x020714,
     });
     const earthMesh = new THREE.Mesh(earthGeo, earthMat);
@@ -77,14 +88,14 @@ export const SatelliteLandingView: React.FC<SatelliteLandingViewProps> = ({
     const atmosMat = new THREE.MeshBasicMaterial({
       color: 0x00f0ff,
       transparent: true,
-      opacity: 0.18,
+      opacity: 0.2,
       side: THREE.BackSide,
     });
     const atmosMesh = new THREE.Mesh(atmosGeo, atmosMat);
     atmosMesh.position.set(0, -7.5, -2);
     scene.add(atmosMesh);
 
-    // 2. Prominent Interactive 3D Satellite Model
+    // 5. Revolving 3D Satellite Model
     const satelliteGroup = new THREE.Group();
 
     const bodyGeo = new THREE.BoxGeometry(1.2, 1.2, 1.8);
@@ -153,7 +164,7 @@ export const SatelliteLandingView: React.FC<SatelliteLandingViewProps> = ({
     satelliteGroup.position.set(0, 0.5, 0);
     scene.add(satelliteGroup);
 
-    // Orbital Path Curve
+    // Glowing Tilted Orbital Trajectory Curve
     const orbitPoints: THREE.Vector3[] = [];
     for (let i = 0; i <= 128; i++) {
       const theta = (i / 128) * Math.PI * 2;
@@ -169,12 +180,12 @@ export const SatelliteLandingView: React.FC<SatelliteLandingViewProps> = ({
     const orbitMat = new THREE.LineBasicMaterial({
       color: 0x38bdf8,
       transparent: true,
-      opacity: 0.35,
+      opacity: 0.4,
     });
     const orbitLine = new THREE.Line(orbitGeo, orbitMat);
     scene.add(orbitLine);
 
-    // Mouse Interaction & Raycasting
+    // Cursor Parallax & Raycaster Setup
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
 
@@ -195,15 +206,8 @@ export const SatelliteLandingView: React.FC<SatelliteLandingViewProps> = ({
       }
     };
 
-    const handleCanvasClick = (e: MouseEvent) => {
-      const rect = renderer.domElement.getBoundingClientRect();
-      mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-      mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-
-      raycaster.setFromCamera(mouse, camera);
-      const intersects = raycaster.intersectObjects(satelliteGroup.children);
-
-      if (intersects.length > 0 || isHovered) {
+    const handleCanvasClick = () => {
+      if (isHovered) {
         setIsZooming(true);
         setTimeout(() => {
           onEnterMissionControl();
@@ -215,21 +219,27 @@ export const SatelliteLandingView: React.FC<SatelliteLandingViewProps> = ({
     domEl.addEventListener('mousemove', handleMouseMove);
     domEl.addEventListener('click', handleCanvasClick);
 
-    // Animation Render Loop
+    // Animation & Parallax Render Loop
     let clock = new THREE.Clock();
     let animId: number;
 
     const animate = () => {
       const elapsed = clock.getElapsedTime();
 
-      // Satellite Floating Animation
-      satelliteGroup.rotation.y = elapsed * 0.3;
+      // Satellite continuous orbital revolution & self-rotation
+      const orbitTheta = elapsed * 0.4;
+      satelliteGroup.position.x = Math.cos(orbitTheta) * 3.8;
+      satelliteGroup.position.z = Math.sin(orbitTheta) * 3.8;
+      satelliteGroup.position.y = 0.5 + Math.sin(orbitTheta * 1.5) * 0.4;
+
+      satelliteGroup.rotation.y = elapsed * 0.4;
       satelliteGroup.rotation.x = Math.sin(elapsed * 0.5) * 0.15;
-      satelliteGroup.position.y = 0.5 + Math.sin(elapsed * 1.2) * 0.15;
 
       earthMesh.rotation.y = elapsed * 0.05;
       ringMesh.rotation.z = elapsed * 0.8;
-      starField.rotation.y = elapsed * 0.01;
+      starField.rotation.y = elapsed * 0.005;
+
+      controls.update();
 
       // Glow Intensity on Hover
       if (isHovered) {
@@ -241,7 +251,7 @@ export const SatelliteLandingView: React.FC<SatelliteLandingViewProps> = ({
 
       // Smooth Camera Zoom Transition on Click
       if (isZooming) {
-        camera.position.z -= 0.15;
+        camera.position.z -= 0.18;
         camera.position.y -= 0.02;
         satelliteGroup.scale.multiplyScalar(1.02);
       }
@@ -268,6 +278,7 @@ export const SatelliteLandingView: React.FC<SatelliteLandingViewProps> = ({
       domEl.removeEventListener('mousemove', handleMouseMove);
       domEl.removeEventListener('click', handleCanvasClick);
       window.removeEventListener('resize', handleResize);
+      controls.dispose();
       document.body.style.cursor = 'default';
       if (container.contains(domEl)) {
         container.removeChild(domEl);
@@ -276,10 +287,10 @@ export const SatelliteLandingView: React.FC<SatelliteLandingViewProps> = ({
   }, [isHovered, isZooming, onEnterMissionControl]);
 
   return (
-    <div className="relative w-full h-screen overflow-hidden bg-space-950 flex flex-col justify-between p-6 sm:p-10 select-none">
+    <div className="relative w-full h-screen h-[100dvh] overflow-hidden bg-space-950 flex flex-col justify-between p-6 sm:p-10 select-none">
       
       {/* 3D WebGL Canvas */}
-      <div ref={mountRef} className="absolute inset-0 z-0" />
+      <div ref={mountRef} className="absolute inset-0 z-0 cursor-grab active:cursor-grabbing" />
 
       {/* Top Header Branding */}
       <div className="relative z-10 flex items-center justify-between pointer-events-none">

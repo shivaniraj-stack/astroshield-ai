@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import type { SpaceObject } from '../../types/mission';
 import { MOCK_SATELLITES, MOCK_DEBRIS } from '../../data/mockMissionData';
 import { 
@@ -23,6 +24,7 @@ export const OrbitalEarthView: React.FC<OrbitalEarthViewProps> = ({
   onOpenSimulator,
 }) => {
   const mountRef = useRef<HTMLDivElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const [selectedObject, setSelectedObject] = useState<SpaceObject | null>(MOCK_SATELLITES[0]);
   const [showDebris, setShowDebris] = useState<boolean>(true);
   const [showOrbits, setShowOrbits] = useState<boolean>(true);
@@ -35,69 +37,80 @@ export const OrbitalEarthView: React.FC<OrbitalEarthViewProps> = ({
     const width = container.clientWidth;
     const height = container.clientHeight;
 
-    // WebGL 3D Scene Setup
+    // 1. WebGL 3D Scene & Framing Setup (Full Earth Visible)
     const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x030712, 0.015);
+    scene.fog = new THREE.FogExp2(0x030712, 0.008);
 
+    // Camera positioned at Z=14 so the complete Earth sphere is 100% visible in frame
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
-    camera.position.set(0, 4, 11);
+    camera.position.set(0, 2.5, 14);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     container.appendChild(renderer.domElement);
 
-    // Starfield Background
+    // 2. Three.js OrbitControls for Full 360° Cursor Rotation & Smooth Scroll Zoom
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.rotateSpeed = 0.8;
+    controls.zoomSpeed = 1.0;
+    controls.minDistance = 6.0;
+    controls.maxDistance = 35.0;
+    controls.target.set(0, 0, 0);
+
+    // 3. Dense 2,500+ Deep-Space Starfield
     const starGeo = new THREE.BufferGeometry();
     const starCoords: number[] = [];
-    for (let i = 0; i < 1800; i++) {
+    for (let i = 0; i < 2500; i++) {
       starCoords.push(
-        (Math.random() - 0.5) * 180,
-        (Math.random() - 0.5) * 180,
-        (Math.random() - 0.5) * 180
+        (Math.random() - 0.5) * 350,
+        (Math.random() - 0.5) * 350,
+        (Math.random() - 0.5) * 350
       );
     }
     starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starCoords, 3));
-    const starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.6, transparent: true, opacity: 0.75 });
+    const starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.7, transparent: true, opacity: 0.85 });
     const starField = new THREE.Points(starGeo, starMat);
     scene.add(starField);
 
     // Realistic Lighting
-    const ambientLight = new THREE.AmbientLight(0x0b1329, 2.0);
+    const ambientLight = new THREE.AmbientLight(0x0b1329, 2.2);
     scene.add(ambientLight);
 
-    const sunLight = new THREE.DirectionalLight(0x00f0ff, 3.5);
-    sunLight.position.set(12, 8, 10);
+    const sunLight = new THREE.DirectionalLight(0x00f0ff, 3.8);
+    sunLight.position.set(14, 10, 12);
     scene.add(sunLight);
 
-    const fillLight = new THREE.DirectionalLight(0x38bdf8, 1.2);
-    fillLight.position.set(-12, -4, -10);
+    const fillLight = new THREE.DirectionalLight(0x38bdf8, 1.4);
+    fillLight.position.set(-14, -6, -12);
     scene.add(fillLight);
 
-    // 1. High-Detail 3D Earth Globe
+    // 4. High-Detail Rotating 3D Earth Globe (Centered at 0,0,0)
     const earthRadius = 3.2;
     const earthGeo = new THREE.SphereGeometry(earthRadius, 64, 64);
     const earthMat = new THREE.MeshPhongMaterial({
       color: 0x071b3e,
       specular: 0x00f0ff,
-      shininess: 35,
+      shininess: 40,
       emissive: 0x020a1c,
     });
     const earthMesh = new THREE.Mesh(earthGeo, earthMat);
     scene.add(earthMesh);
 
-    // Grid wireframe lines on Earth surface
-    const gridGeo = new THREE.SphereGeometry(earthRadius * 1.002, 32, 16);
+    // Wireframe longitude/latitude grid overlay
+    const gridGeo = new THREE.SphereGeometry(earthRadius * 1.002, 36, 18);
     const gridMat = new THREE.MeshBasicMaterial({
       color: 0x00f0ff,
       wireframe: true,
       transparent: true,
-      opacity: 0.12,
+      opacity: 0.14,
     });
     const gridMesh = new THREE.Mesh(gridGeo, gridMat);
     earthMesh.add(gridMesh);
 
-    // Atmospheric Glow Mesh
+    // Atmospheric Glow Halo
     const atmosGeo = new THREE.SphereGeometry(earthRadius * 1.06, 64, 64);
     const atmosMat = new THREE.MeshBasicMaterial({
       color: 0x00f0ff,
@@ -108,10 +121,9 @@ export const OrbitalEarthView: React.FC<OrbitalEarthViewProps> = ({
     const atmosMesh = new THREE.Mesh(atmosGeo, atmosMat);
     scene.add(atmosMesh);
 
-    // 2. Active Satellites Objects & Orbital Paths
+    // 5. Active Satellites & 35 Debris Objects Revolving Around Earth
     const satelliteMeshes: { object: SpaceObject; mesh: THREE.Mesh; orbitLine: THREE.Line }[] = [];
 
-    // Generate 35 Orbital Debris Objects
     const generateDebrisObjects = (): SpaceObject[] => {
       const debrisList: SpaceObject[] = [...MOCK_DEBRIS];
       for (let i = 4; i <= 35; i++) {
@@ -138,27 +150,25 @@ export const OrbitalEarthView: React.FC<OrbitalEarthViewProps> = ({
 
     const extendedDebris = generateDebrisObjects();
 
-    // Render Satellites
+    // Render Revolving Satellites
     MOCK_SATELLITES.forEach((sat, idx) => {
-      const orbitR = 4.2 + idx * 0.45;
+      const orbitR = 4.3 + idx * 0.5;
       const tilt = (sat.inclinationDeg * Math.PI) / 180;
 
-      // Orbit Ring
       const pts: THREE.Vector3[] = [];
       for (let i = 0; i <= 96; i++) {
         const theta = (i / 96) * Math.PI * 2;
-        pts.push(new THREE.Vector3(Math.cos(theta) * orbitR, Math.sin(theta) * Math.sin(tilt) * orbitR * 0.3, Math.sin(theta) * orbitR));
+        pts.push(new THREE.Vector3(Math.cos(theta) * orbitR, Math.sin(theta) * Math.sin(tilt) * orbitR * 0.35, Math.sin(theta) * orbitR));
       }
       const oGeo = new THREE.BufferGeometry().setFromPoints(pts);
       const oMat = new THREE.LineBasicMaterial({
         color: selectedObject?.id === sat.id ? 0x00f0ff : 0x0284c7,
         transparent: true,
-        opacity: selectedObject?.id === sat.id ? 0.9 : 0.4,
+        opacity: selectedObject?.id === sat.id ? 0.95 : 0.45,
       });
       const oLine = new THREE.Line(oGeo, oMat);
       scene.add(oLine);
 
-      // Satellite Mesh
       const sGeo = new THREE.SphereGeometry(0.12, 16, 16);
       const sMat = new THREE.MeshStandardMaterial({
         color: 0x00f0ff,
@@ -172,7 +182,7 @@ export const OrbitalEarthView: React.FC<OrbitalEarthViewProps> = ({
       satelliteMeshes.push({ object: sat, mesh: sMesh, orbitLine: oLine });
     });
 
-    // Render 35 Debris Objects
+    // Render 35 Revolving Debris Objects
     const debrisMeshes: { object: SpaceObject; mesh: THREE.Mesh; orbitLine: THREE.Line }[] = [];
 
     extendedDebris.forEach((deb, idx) => {
@@ -188,12 +198,12 @@ export const OrbitalEarthView: React.FC<OrbitalEarthViewProps> = ({
       const oMat = new THREE.LineBasicMaterial({
         color: 0xef4444,
         transparent: true,
-        opacity: 0.25,
+        opacity: 0.28,
       });
       const oLine = new THREE.Line(oGeo, oMat);
       scene.add(oLine);
 
-      const dGeo = new THREE.SphereGeometry(0.06, 12, 12);
+      const dGeo = new THREE.SphereGeometry(0.065, 12, 12);
       const dMat = new THREE.MeshBasicMaterial({ color: 0xef4444 });
       const dMesh = new THREE.Mesh(dGeo, dMat);
       dMesh.userData = { spaceObject: deb };
@@ -202,20 +212,20 @@ export const OrbitalEarthView: React.FC<OrbitalEarthViewProps> = ({
       debrisMeshes.push({ object: deb, mesh: dMesh, orbitLine: oLine });
     });
 
-    // 3. Convergence Line for Collision Conjunction (SAT-01 vs DEBRIS-482)
+    // Convergence Line for Collision Risk (SAT-01 vs DEBRIS-482)
     const convergenceGeo = new THREE.BufferGeometry().setFromPoints([
       new THREE.Vector3(0, 0, 0),
       new THREE.Vector3(0, 0, 0),
     ]);
     const convergenceMat = new THREE.LineDashedMaterial({
       color: 0xef4444,
-      dashSize: 0.2,
-      gapSize: 0.1,
+      dashSize: 0.25,
+      gapSize: 0.12,
     });
     const convergenceLine = new THREE.Line(convergenceGeo, convergenceMat);
     scene.add(convergenceLine);
 
-    // Mouse Interaction Raycasting
+    // Object Selection Raycasting
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
 
@@ -242,32 +252,54 @@ export const OrbitalEarthView: React.FC<OrbitalEarthViewProps> = ({
     const domEl = renderer.domElement;
     domEl.addEventListener('click', handleCanvasClick);
 
-    // Animation Loop
+    // 6. Native Fullscreen API Change Listener
+    const handleFullscreenChange = () => {
+      const isFull = !!(
+        document.fullscreenElement ||
+        (document as any).webkitFullscreenElement
+      );
+      setIsFullscreen(isFull);
+
+      setTimeout(() => {
+        if (!containerRef.current) return;
+        const w = containerRef.current.clientWidth;
+        const h = containerRef.current.clientHeight;
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+        renderer.setSize(w, h);
+      }, 100);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+
+    // Animation & Physics Revolution Loop
     let clock = new THREE.Clock();
     let animId: number;
 
     const animate = () => {
       const elapsed = clock.getElapsedTime();
 
-      // Earth rotation
+      // Earth Mesh Y-axis rotation
       earthMesh.rotation.y = elapsed * 0.08;
-      starField.rotation.y = elapsed * 0.005;
+      starField.rotation.y = elapsed * 0.003;
 
-      // Move Satellites along Orbital Trajectories
+      controls.update();
+
+      // Satellite orbital revolution
       satelliteMeshes.forEach(({ object, mesh }, idx) => {
-        const orbitR = 4.2 + idx * 0.45;
+        const orbitR = 4.3 + idx * 0.5;
         const tilt = (object.inclinationDeg * Math.PI) / 180;
         const speed = 0.4 + idx * 0.08;
         const theta = elapsed * speed + idx;
 
         mesh.position.x = Math.cos(theta) * orbitR;
-        mesh.position.y = Math.sin(theta) * Math.sin(tilt) * orbitR * 0.3;
+        mesh.position.y = Math.sin(theta) * Math.sin(tilt) * orbitR * 0.35;
         mesh.position.z = Math.sin(theta) * orbitR;
-
         mesh.visible = true;
       });
 
-      // Move Debris along Orbital Trajectories
+      // Debris orbital revolution
       debrisMeshes.forEach(({ object, mesh, orbitLine }, idx) => {
         const orbitR = 4.0 + (idx % 10) * 0.35;
         const tilt = (object.inclinationDeg * Math.PI) / 180;
@@ -282,7 +314,7 @@ export const OrbitalEarthView: React.FC<OrbitalEarthViewProps> = ({
         orbitLine.visible = showDebris && showOrbits;
       });
 
-      // Update Convergence Line between SAT-01 and DEBRIS-482
+      // Update Conjunction Convergence Vector Line
       if (satelliteMeshes[0] && debrisMeshes[0]) {
         const satPos = satelliteMeshes[0].mesh.position;
         const debPos = debrisMeshes[0].mesh.position;
@@ -301,9 +333,9 @@ export const OrbitalEarthView: React.FC<OrbitalEarthViewProps> = ({
     animate();
 
     const handleResize = () => {
-      if (!container) return;
-      const w = container.clientWidth;
-      const h = container.clientHeight;
+      if (!containerRef.current) return;
+      const w = containerRef.current.clientWidth;
+      const h = containerRef.current.clientHeight;
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
       renderer.setSize(w, h);
@@ -314,18 +346,43 @@ export const OrbitalEarthView: React.FC<OrbitalEarthViewProps> = ({
     return () => {
       cancelAnimationFrame(animId);
       domEl.removeEventListener('click', handleCanvasClick);
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
       window.removeEventListener('resize', handleResize);
+      controls.dispose();
       if (container.contains(domEl)) {
         container.removeChild(domEl);
       }
     };
   }, [showDebris, showOrbits, selectedObject]);
 
+  // Native Browser Fullscreen API Trigger
+  const handleToggleFullscreen = () => {
+    const targetEl = containerRef.current;
+    if (!targetEl) return;
+
+    if (!document.fullscreenElement && !(document as any).webkitFullscreenElement) {
+      if (targetEl.requestFullscreen) {
+        targetEl.requestFullscreen();
+      } else if ((targetEl as any).webkitRequestFullscreen) {
+        (targetEl as any).webkitRequestFullscreen();
+      }
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      } else if ((document as any).webkitExitFullscreen) {
+        (document as any).webkitExitFullscreen();
+      }
+    }
+  };
+
   return (
-    <div className={`relative w-full rounded-3xl glass-panel border border-cyan-500/30 overflow-hidden shadow-2xl transition-all ${
-      isFullscreen ? 'fixed inset-0 z-50 rounded-none border-none' : 'h-[600px]'
-    }`}>
-      
+    <div 
+      ref={containerRef}
+      className={`relative w-full rounded-3xl glass-panel border border-cyan-500/30 overflow-hidden shadow-2xl transition-all ${
+        isFullscreen ? 'w-screen h-screen rounded-none border-none bg-space-950' : 'h-[600px]'
+      }`}
+    >
       {/* 3D WebGL Canvas */}
       <div ref={mountRef} className="w-full h-full cursor-grab active:cursor-grabbing" />
 
@@ -361,7 +418,7 @@ export const OrbitalEarthView: React.FC<OrbitalEarthViewProps> = ({
         </button>
       </div>
 
-      {/* Top Right Controls & Fullscreen */}
+      {/* Top Right Controls & Native Fullscreen Button */}
       <div className="absolute top-4 right-4 z-10 flex items-center gap-2 font-telemetry text-xs">
         <div className="bg-space-950/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-cyan-500/20 text-slate-300 flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
@@ -369,11 +426,11 @@ export const OrbitalEarthView: React.FC<OrbitalEarthViewProps> = ({
         </div>
 
         <button
-          onClick={() => setIsFullscreen(!isFullscreen)}
-          className="p-2 rounded-xl bg-space-900/90 border border-cyan-500/30 text-slate-300 hover:text-cyan-300 transition"
-          title="Toggle Fullscreen"
+          onClick={handleToggleFullscreen}
+          className="p-2 rounded-xl bg-space-900/90 border border-cyan-500/40 text-cyan-300 hover:bg-space-850 transition shadow-[0_0_15px_rgba(0,240,255,0.2)]"
+          title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
         >
-          {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+          {isFullscreen ? <Minimize2 className="w-4 h-4 text-cyan-400" /> : <Maximize2 className="w-4 h-4 text-cyan-400" />}
         </button>
       </div>
 
