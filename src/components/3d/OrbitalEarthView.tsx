@@ -37,13 +37,13 @@ export const OrbitalEarthView: React.FC<OrbitalEarthViewProps> = ({
     const width = container.clientWidth;
     const height = container.clientHeight;
 
-    // 1. WebGL 3D Scene & Framing Setup (Full Earth Visible)
+    // 1. WebGL 3D Scene & Expanded Camera Framing (Centered Uncropped Earth)
     const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x030712, 0.008);
+    scene.fog = new THREE.FogExp2(0x030712, 0.006);
 
-    // Camera positioned at Z=14 so the complete Earth sphere is 100% visible in frame
+    // Camera positioned at (0, 3.5, 18) to frame Earth & expanded 3D orbital space volume
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
-    camera.position.set(0, 2.5, 14);
+    camera.position.set(0, 3.5, 18);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(width, height);
@@ -57,17 +57,17 @@ export const OrbitalEarthView: React.FC<OrbitalEarthViewProps> = ({
     controls.rotateSpeed = 0.8;
     controls.zoomSpeed = 1.0;
     controls.minDistance = 6.0;
-    controls.maxDistance = 35.0;
+    controls.maxDistance = 45.0;
     controls.target.set(0, 0, 0);
 
-    // 3. Dense 2,500+ Deep-Space Starfield
+    // 3. Expanded 3,000+ Deep-Space Starfield Across Volumetric Space
     const starGeo = new THREE.BufferGeometry();
     const starCoords: number[] = [];
-    for (let i = 0; i < 2500; i++) {
+    for (let i = 0; i < 3000; i++) {
       starCoords.push(
-        (Math.random() - 0.5) * 350,
-        (Math.random() - 0.5) * 350,
-        (Math.random() - 0.5) * 350
+        (Math.random() - 0.5) * 450,
+        (Math.random() - 0.5) * 450,
+        (Math.random() - 0.5) * 450
       );
     }
     starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starCoords, 3));
@@ -80,11 +80,11 @@ export const OrbitalEarthView: React.FC<OrbitalEarthViewProps> = ({
     scene.add(ambientLight);
 
     const sunLight = new THREE.DirectionalLight(0x00f0ff, 3.8);
-    sunLight.position.set(14, 10, 12);
+    sunLight.position.set(16, 12, 14);
     scene.add(sunLight);
 
     const fillLight = new THREE.DirectionalLight(0x38bdf8, 1.4);
-    fillLight.position.set(-14, -6, -12);
+    fillLight.position.set(-16, -8, -14);
     scene.add(fillLight);
 
     // 4. High-Detail Rotating 3D Earth Globe (Centered at 0,0,0)
@@ -121,7 +121,7 @@ export const OrbitalEarthView: React.FC<OrbitalEarthViewProps> = ({
     const atmosMesh = new THREE.Mesh(atmosGeo, atmosMat);
     scene.add(atmosMesh);
 
-    // 5. Active Satellites & 35 Debris Objects Revolving Around Earth
+    // 5. Large-Scale Volumetric 3D Satellites & 35 Debris Objects (Radii: 4.4 to 12.0 Units)
     const satelliteMeshes: { object: SpaceObject; mesh: THREE.Mesh; orbitLine: THREE.Line }[] = [];
 
     const generateDebrisObjects = (): SpaceObject[] => {
@@ -134,12 +134,12 @@ export const OrbitalEarthView: React.FC<OrbitalEarthViewProps> = ({
           type: 'DEBRIS',
           altitudeKm: 500 + (i * 18) % 600,
           velocityKms: 7.6 + (i % 5) * 0.05,
-          inclinationDeg: 20 + (i * 7) % 80,
+          inclinationDeg: 15 + (i * 9) % 75,
           latitude: (i * 12) % 90 - 45,
           longitude: (i * 23) % 360 - 180,
           riskLevel: i % 4 === 0 ? 'HIGH' : 'LOW',
           status: 'MONITORED',
-          orbitRadius: 4.2 + (i % 8) * 0.3,
+          orbitRadius: 4.4 + (i % 12) * 0.65,
           orbitColor: '#ef4444',
           designator: `1999-025${String.fromCharCode(65 + (i % 26))}`,
           country: 'UNKNOWN',
@@ -150,15 +150,19 @@ export const OrbitalEarthView: React.FC<OrbitalEarthViewProps> = ({
 
     const extendedDebris = generateDebrisObjects();
 
-    // Render Revolving Satellites
+    // Render Revolving Satellites across expanded 3D orbital radii (4.8 to 10.5)
     MOCK_SATELLITES.forEach((sat, idx) => {
-      const orbitR = 4.3 + idx * 0.5;
+      const orbitR = 4.8 + idx * 1.35;
       const tilt = (sat.inclinationDeg * Math.PI) / 180;
 
       const pts: THREE.Vector3[] = [];
       for (let i = 0; i <= 96; i++) {
         const theta = (i / 96) * Math.PI * 2;
-        pts.push(new THREE.Vector3(Math.cos(theta) * orbitR, Math.sin(theta) * Math.sin(tilt) * orbitR * 0.35, Math.sin(theta) * orbitR));
+        pts.push(new THREE.Vector3(
+          Math.cos(theta) * orbitR,
+          Math.sin(theta) * Math.sin(tilt) * orbitR * 0.45,
+          Math.sin(theta) * orbitR
+        ));
       }
       const oGeo = new THREE.BufferGeometry().setFromPoints(pts);
       const oMat = new THREE.LineBasicMaterial({
@@ -169,7 +173,7 @@ export const OrbitalEarthView: React.FC<OrbitalEarthViewProps> = ({
       const oLine = new THREE.Line(oGeo, oMat);
       scene.add(oLine);
 
-      const sGeo = new THREE.SphereGeometry(0.12, 16, 16);
+      const sGeo = new THREE.SphereGeometry(0.13, 16, 16);
       const sMat = new THREE.MeshStandardMaterial({
         color: 0x00f0ff,
         emissive: 0x00f0ff,
@@ -182,17 +186,21 @@ export const OrbitalEarthView: React.FC<OrbitalEarthViewProps> = ({
       satelliteMeshes.push({ object: sat, mesh: sMesh, orbitLine: oLine });
     });
 
-    // Render 35 Revolving Debris Objects
+    // Render 35 Revolving Debris Objects across expanded 3D orbital radii (4.4 to 12.0)
     const debrisMeshes: { object: SpaceObject; mesh: THREE.Mesh; orbitLine: THREE.Line }[] = [];
 
     extendedDebris.forEach((deb, idx) => {
-      const orbitR = 4.0 + (idx % 10) * 0.35;
+      const orbitR = 4.4 + (idx % 12) * 0.65;
       const tilt = (deb.inclinationDeg * Math.PI) / 180;
 
       const pts: THREE.Vector3[] = [];
       for (let i = 0; i <= 64; i++) {
         const theta = (i / 64) * Math.PI * 2;
-        pts.push(new THREE.Vector3(Math.cos(theta) * orbitR, Math.sin(theta) * Math.sin(tilt) * orbitR * 0.4, Math.sin(theta) * orbitR));
+        pts.push(new THREE.Vector3(
+          Math.cos(theta) * orbitR,
+          Math.sin(theta) * Math.sin(tilt) * orbitR * 0.5,
+          Math.sin(theta) * orbitR
+        ));
       }
       const oGeo = new THREE.BufferGeometry().setFromPoints(pts);
       const oMat = new THREE.LineBasicMaterial({
@@ -203,7 +211,7 @@ export const OrbitalEarthView: React.FC<OrbitalEarthViewProps> = ({
       const oLine = new THREE.Line(oGeo, oMat);
       scene.add(oLine);
 
-      const dGeo = new THREE.SphereGeometry(0.065, 12, 12);
+      const dGeo = new THREE.SphereGeometry(0.07, 12, 12);
       const dMat = new THREE.MeshBasicMaterial({ color: 0xef4444 });
       const dMesh = new THREE.Mesh(dGeo, dMat);
       dMesh.userData = { spaceObject: deb };
@@ -219,8 +227,8 @@ export const OrbitalEarthView: React.FC<OrbitalEarthViewProps> = ({
     ]);
     const convergenceMat = new THREE.LineDashedMaterial({
       color: 0xef4444,
-      dashSize: 0.25,
-      gapSize: 0.12,
+      dashSize: 0.3,
+      gapSize: 0.15,
     });
     const convergenceLine = new THREE.Line(convergenceGeo, convergenceMat);
     scene.add(convergenceLine);
@@ -273,41 +281,41 @@ export const OrbitalEarthView: React.FC<OrbitalEarthViewProps> = ({
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
 
-    // Animation & Physics Revolution Loop
+    // Animation & Volumetric Orbital Revolution Loop
     let clock = new THREE.Clock();
     let animId: number;
 
     const animate = () => {
       const elapsed = clock.getElapsedTime();
 
-      // Clearly visible continuous Earth Mesh Y-axis rotation (0.25 rad/s)
+      // Earth Mesh Y-axis rotation (0.25 rad/s)
       earthMesh.rotation.y = elapsed * 0.25;
       starField.rotation.y = elapsed * 0.003;
 
       controls.update();
 
-      // Satellite orbital revolution
+      // Satellite orbital revolution across wide 3D space
       satelliteMeshes.forEach(({ object, mesh }, idx) => {
-        const orbitR = 4.3 + idx * 0.5;
+        const orbitR = 4.8 + idx * 1.35;
         const tilt = (object.inclinationDeg * Math.PI) / 180;
-        const speed = 0.4 + idx * 0.08;
+        const speed = 0.35 + idx * 0.06;
         const theta = elapsed * speed + idx;
 
         mesh.position.x = Math.cos(theta) * orbitR;
-        mesh.position.y = Math.sin(theta) * Math.sin(tilt) * orbitR * 0.35;
+        mesh.position.y = Math.sin(theta) * Math.sin(tilt) * orbitR * 0.45;
         mesh.position.z = Math.sin(theta) * orbitR;
         mesh.visible = true;
       });
 
-      // Debris orbital revolution
+      // Debris orbital revolution across wide 3D space
       debrisMeshes.forEach(({ object, mesh, orbitLine }, idx) => {
-        const orbitR = 4.0 + (idx % 10) * 0.35;
+        const orbitR = 4.4 + (idx % 12) * 0.65;
         const tilt = (object.inclinationDeg * Math.PI) / 180;
-        const speed = 0.5 + (idx % 7) * 0.06;
-        const theta = elapsed * speed + idx * 0.5;
+        const speed = 0.4 + (idx % 7) * 0.05;
+        const theta = elapsed * speed + idx * 0.4;
 
         mesh.position.x = Math.cos(theta) * orbitR;
-        mesh.position.y = Math.sin(theta) * Math.sin(tilt) * orbitR * 0.4;
+        mesh.position.y = Math.sin(theta) * Math.sin(tilt) * orbitR * 0.5;
         mesh.position.z = Math.sin(theta) * orbitR;
 
         mesh.visible = showDebris;
