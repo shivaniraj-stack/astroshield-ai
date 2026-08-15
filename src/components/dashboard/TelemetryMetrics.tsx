@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Radar, Satellite, AlertTriangle, ShieldCheck, Wifi, ExternalLink, RefreshCw } from 'lucide-react';
 import { fetchCelesTrakData } from '../../services/celestrakApi';
 import type { LiveTelemetryState } from '../../services/celestrakApi';
+import { useScrollReveal } from '../../hooks/useScrollReveal';
 
 interface MetricCardProps {
   label: string;
@@ -13,6 +14,7 @@ interface MetricCardProps {
   borderGlowColor?: string;
   textColor?: string;
   liveBadge?: string;
+  staggerClass?: string;
 }
 
 const MetricCard: React.FC<MetricCardProps> = ({
@@ -25,8 +27,10 @@ const MetricCard: React.FC<MetricCardProps> = ({
   borderGlowColor = 'border-cyan-500/30',
   textColor = 'text-white',
   liveBadge,
+  staggerClass = '',
 }) => {
   const [displayValue, setDisplayValue] = useState<number>(0);
+  const revealRef = useScrollReveal<HTMLDivElement>();
 
   useEffect(() => {
     if (isString || typeof targetValue !== 'number') return;
@@ -45,7 +49,10 @@ const MetricCard: React.FC<MetricCardProps> = ({
   }, [targetValue, isString]);
 
   return (
-    <div className={`p-6 sm:p-7 rounded-3xl glass-panel-interactive border ${borderGlowColor} space-y-3 font-telemetry animate-fadeInUp`}>
+    <div 
+      ref={revealRef}
+      className={`scroll-reveal ${staggerClass} p-5 rounded-2xl glass-panel-interactive border ${borderGlowColor} space-y-2 font-telemetry`}
+    >
       <div className="flex items-center justify-between text-slate-400 text-xs">
         <div className="flex items-center gap-2">
           <span className="font-bold tracking-wider uppercase text-[11px] text-slate-400">{label}</span>
@@ -61,7 +68,7 @@ const MetricCard: React.FC<MetricCardProps> = ({
       </div>
 
       <div className="flex items-baseline gap-2">
-        <span className={`font-heading font-extrabold text-3xl sm:text-4xl ${textColor} tracking-tight`}>
+        <span className={`font-heading font-extrabold text-3xl ${textColor}`}>
           {isString ? targetValue : displayValue.toLocaleString()}
         </span>
         {unit && <span className="text-xs text-slate-400 font-bold">{unit}</span>}
@@ -86,6 +93,7 @@ export const TelemetryMetrics: React.FC = () => {
   });
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const footerRef = useScrollReveal<HTMLDivElement>();
 
   const loadData = async () => {
     setIsLoading(true);
@@ -100,8 +108,8 @@ export const TelemetryMetrics: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      {/* 4 Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* 4 Staggered Scroll-Reveal Metric Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
           label="TRACKED OBJECTS"
           targetValue={liveState.totalTracked}
@@ -110,6 +118,7 @@ export const TelemetryMetrics: React.FC = () => {
           borderGlowColor="border-cyan-500/30"
           textColor="text-cyan-300 text-glow-cyan"
           liveBadge={liveState.isLive ? 'LIVE CELESTRAK' : 'CACHED'}
+          staggerClass="stagger-1"
         />
 
         <MetricCard
@@ -120,6 +129,7 @@ export const TelemetryMetrics: React.FC = () => {
           borderGlowColor="border-emerald-500/30"
           textColor="text-emerald-400"
           liveBadge="PAYLOADS"
+          staggerClass="stagger-2"
         />
 
         <MetricCard
@@ -130,6 +140,7 @@ export const TelemetryMetrics: React.FC = () => {
           borderGlowColor="border-red-500/40"
           textColor="text-red-400 text-glow-amber"
           liveBadge="SGP4 EVALUATED"
+          staggerClass="stagger-3"
         />
 
         <MetricCard
@@ -141,11 +152,15 @@ export const TelemetryMetrics: React.FC = () => {
           borderGlowColor="border-cyan-500/30"
           textColor="text-cyan-400"
           liveBadge="CELESTRAK"
+          staggerClass="stagger-4"
         />
       </div>
 
       {/* CelesTrak Data Attribution & Sync Footer */}
-      <div className="p-4 rounded-2xl bg-space-900/90 border border-cyan-500/20 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-telemetry">
+      <div 
+        ref={footerRef}
+        className="scroll-reveal p-4 rounded-2xl bg-space-900/90 border border-cyan-500/20 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-telemetry"
+      >
         <div className="flex items-center gap-2 text-slate-300">
           <Wifi className="w-4 h-4 text-emerald-400 animate-pulse" />
           <span>
