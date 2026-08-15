@@ -7,6 +7,86 @@ interface SatelliteLandingViewProps {
   onEnterMissionControl: () => void;
 }
 
+// Procedural High-Res Equirectangular Earth Texture Generator (100% Offline Reliable)
+const generateEarthTexture = (): THREE.CanvasTexture => {
+  const canvas = document.createElement('canvas');
+  canvas.width = 2048;
+  canvas.height = 1024;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return new THREE.CanvasTexture(canvas);
+
+  // 1. Ocean Base (Deep Oceanic Blue gradient)
+  const oceanGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  oceanGrad.addColorStop(0, '#06132b');
+  oceanGrad.addColorStop(0.5, '#0a2550');
+  oceanGrad.addColorStop(1, '#06132b');
+  ctx.fillStyle = oceanGrad;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Helper to draw realistic landmasses
+  const drawLandmass = (cx: number, cy: number, rx: number, ry: number, color: string) => {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, rx, ry, Math.PI / 12, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Rough coastal details
+    for (let i = 0; i < 8; i++) {
+      const angle = (i / 8) * Math.PI * 2;
+      const subX = cx + Math.cos(angle) * (rx * 0.7);
+      const subY = cy + Math.sin(angle) * (ry * 0.7);
+      ctx.beginPath();
+      ctx.arc(subX, subY, rx * 0.35, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  };
+
+  // Continents: North America, South America, Eurasia, Africa, Australia
+  drawLandmass(500, 320, 220, 140, '#1b4332'); // North America
+  drawLandmass(650, 650, 130, 200, '#2d6a4f'); // South America
+  drawLandmass(1250, 300, 350, 160, '#2d6a4f'); // Eurasia
+  drawLandmass(1100, 520, 180, 210, '#b5838d'); // Africa (Savannah/Desert)
+  drawLandmass(1650, 680, 140, 110, '#d4a373'); // Australia
+  drawLandmass(1400, 420, 120, 90, '#1b4332');  // SE Asia
+
+  // Polar Ice Caps
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, 70); // North Pole
+  ctx.fillRect(0, canvas.height - 80, canvas.width, 80); // South Pole
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.ClampToEdgeWrapping;
+  return texture;
+};
+
+// Procedural Cloud Formation Texture Generator
+const generateCloudTexture = (): THREE.CanvasTexture => {
+  const canvas = document.createElement('canvas');
+  canvas.width = 1024;
+  canvas.height = 512;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return new THREE.CanvasTexture(canvas);
+
+  ctx.fillStyle = 'rgba(0, 0, 0, 0)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+  for (let i = 0; i < 90; i++) {
+    const x = Math.random() * canvas.width;
+    const y = Math.random() * canvas.height;
+    const r = 20 + Math.random() * 40;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.ClampToEdgeWrapping;
+  return texture;
+};
+
 export const SatelliteLandingView: React.FC<SatelliteLandingViewProps> = ({
   onEnterMissionControl,
 }) => {
@@ -21,36 +101,35 @@ export const SatelliteLandingView: React.FC<SatelliteLandingViewProps> = ({
     const width = container.clientWidth;
     const height = container.clientHeight;
 
-    // 1. WebGL 3D Scene Setup (Full Viewport 100dvh)
+    // WebGL Scene Setup
     const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x030712, 0.01);
+    scene.fog = new THREE.FogExp2(0x030712, 0.008);
 
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
-    camera.position.set(0, 1.2, 8.5);
+    camera.position.set(0, 0.5, 10.5);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     container.appendChild(renderer.domElement);
 
-    // 2. OrbitControls for Interactive Mouse/Touch Dragging around Scene
+    // OrbitControls for Drag & Pan
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
     controls.rotateSpeed = 0.6;
-    controls.zoomSpeed = 0.8;
-    controls.minDistance = 4.5;
-    controls.maxDistance = 20.0;
+    controls.minDistance = 5.0;
+    controls.maxDistance = 25.0;
     controls.target.set(0, 0, 0);
 
-    // 3. Dense 2,000+ Deep Space Starfield
+    // Deep-Space Starfield
     const starGeo = new THREE.BufferGeometry();
     const starCoords: number[] = [];
-    for (let i = 0; i < 2000; i++) {
+    for (let i = 0; i < 2200; i++) {
       starCoords.push(
-        (Math.random() - 0.5) * 250,
-        (Math.random() - 0.5) * 250,
-        (Math.random() - 0.5) * 250
+        (Math.random() - 0.5) * 300,
+        (Math.random() - 0.5) * 300,
+        (Math.random() - 0.5) * 300
       );
     }
     starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starCoords, 3));
@@ -58,47 +137,58 @@ export const SatelliteLandingView: React.FC<SatelliteLandingViewProps> = ({
     const starField = new THREE.Points(starGeo, starMat);
     scene.add(starField);
 
-    // Lighting
-    const ambientLight = new THREE.AmbientLight(0x0f172a, 1.8);
+    // Realistic Sun Lighting (Day/Night Terminator)
+    const ambientLight = new THREE.AmbientLight(0x0b172a, 1.2);
     scene.add(ambientLight);
 
-    const cyanSun = new THREE.DirectionalLight(0x00f0ff, 3.2);
-    cyanSun.position.set(10, 10, 10);
-    scene.add(cyanSun);
+    const sunLight = new THREE.DirectionalLight(0xffffff, 3.8);
+    sunLight.position.set(16, 10, 14);
+    scene.add(sunLight);
 
-    const amberLight = new THREE.DirectionalLight(0xf59e0b, 1.6);
-    amberLight.position.set(-10, -5, -5);
-    scene.add(amberLight);
+    const oceanGlowLight = new THREE.DirectionalLight(0x00f0ff, 1.5);
+    oceanGlowLight.position.set(-16, -6, -10);
+    scene.add(oceanGlowLight);
 
-    // 4. Rotating 3D Earth Globe
-    const earthRadius = 6.0;
+    // 1. Photorealistic 3D Earth Globe
+    const earthRadius = 3.6;
+    const earthTexture = generateEarthTexture();
     const earthGeo = new THREE.SphereGeometry(earthRadius, 64, 64);
     const earthMat = new THREE.MeshPhongMaterial({
-      color: 0x071530,
+      map: earthTexture,
       specular: 0x00f0ff,
-      shininess: 35,
-      emissive: 0x020714,
+      shininess: 25,
+      emissive: 0x020817,
     });
     const earthMesh = new THREE.Mesh(earthGeo, earthMat);
-    earthMesh.position.set(0, -7.5, -2);
     scene.add(earthMesh);
 
-    // Atmospheric Glow Halo
+    // 2. Independent Cloud Layer Sphere
+    const cloudTexture = generateCloudTexture();
+    const cloudGeo = new THREE.SphereGeometry(earthRadius * 1.025, 64, 64);
+    const cloudMat = new THREE.MeshPhongMaterial({
+      map: cloudTexture,
+      transparent: true,
+      opacity: 0.45,
+      blending: THREE.NormalBlending,
+    });
+    const cloudMesh = new THREE.Mesh(cloudGeo, cloudMat);
+    scene.add(cloudMesh);
+
+    // 3. Thin Atmospheric Rim Halo
     const atmosGeo = new THREE.SphereGeometry(earthRadius * 1.05, 64, 64);
     const atmosMat = new THREE.MeshBasicMaterial({
       color: 0x00f0ff,
       transparent: true,
-      opacity: 0.2,
+      opacity: 0.18,
       side: THREE.BackSide,
     });
     const atmosMesh = new THREE.Mesh(atmosGeo, atmosMat);
-    atmosMesh.position.set(0, -7.5, -2);
     scene.add(atmosMesh);
 
-    // 5. Revolving 3D Satellite Model
+    // 4. Prominent 3D Satellite Model
     const satelliteGroup = new THREE.Group();
 
-    const bodyGeo = new THREE.BoxGeometry(1.2, 1.2, 1.8);
+    const bodyGeo = new THREE.BoxGeometry(0.9, 0.9, 1.4);
     const bodyMat = new THREE.MeshStandardMaterial({
       color: 0x1e293b,
       metalness: 0.8,
@@ -107,7 +197,7 @@ export const SatelliteLandingView: React.FC<SatelliteLandingViewProps> = ({
     const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
     satelliteGroup.add(bodyMesh);
 
-    const foilGeo = new THREE.BoxGeometry(1.22, 0.4, 1.82);
+    const foilGeo = new THREE.BoxGeometry(0.92, 0.3, 1.42);
     const foilMat = new THREE.MeshStandardMaterial({
       color: 0xd97706,
       metalness: 0.9,
@@ -116,7 +206,7 @@ export const SatelliteLandingView: React.FC<SatelliteLandingViewProps> = ({
     const foilMesh = new THREE.Mesh(foilGeo, foilMat);
     satelliteGroup.add(foilMesh);
 
-    const wingGeo = new THREE.BoxGeometry(4.5, 0.05, 1.0);
+    const wingGeo = new THREE.BoxGeometry(3.6, 0.04, 0.8);
     const wingMat = new THREE.MeshStandardMaterial({
       color: 0x0284c7,
       metalness: 0.9,
@@ -125,32 +215,21 @@ export const SatelliteLandingView: React.FC<SatelliteLandingViewProps> = ({
       emissiveIntensity: 0.4,
     });
     const leftWing = new THREE.Mesh(wingGeo, wingMat);
-    leftWing.position.set(-3.0, 0, 0);
+    leftWing.position.set(-2.4, 0, 0);
     satelliteGroup.add(leftWing);
 
     const rightWing = new THREE.Mesh(wingGeo, wingMat);
-    rightWing.position.set(3.0, 0, 0);
+    rightWing.position.set(2.4, 0, 0);
     satelliteGroup.add(rightWing);
 
-    const dishGeo = new THREE.ConeGeometry(0.6, 0.4, 32);
-    const dishMat = new THREE.MeshStandardMaterial({
-      color: 0x38bdf8,
-      metalness: 0.9,
-      roughness: 0.1,
-    });
-    const dishMesh = new THREE.Mesh(dishGeo, dishMat);
-    dishMesh.rotation.x = Math.PI;
-    dishMesh.position.set(0, 0.9, 0);
-    satelliteGroup.add(dishMesh);
-
-    const beaconGeo = new THREE.SphereGeometry(0.15, 16, 16);
+    const beaconGeo = new THREE.SphereGeometry(0.12, 16, 16);
     const beaconMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff });
     const beaconMesh = new THREE.Mesh(beaconGeo, beaconMat);
-    beaconMesh.position.set(0, 0, 1.0);
+    beaconMesh.position.set(0, 0, 0.8);
     satelliteGroup.add(beaconMesh);
 
     // Glowing Aura Ring around Satellite
-    const ringGeo = new THREE.RingGeometry(2.4, 2.55, 64);
+    const ringGeo = new THREE.RingGeometry(1.8, 1.95, 64);
     const ringMat = new THREE.MeshBasicMaterial({
       color: 0x00f0ff,
       side: THREE.DoubleSide,
@@ -161,18 +240,18 @@ export const SatelliteLandingView: React.FC<SatelliteLandingViewProps> = ({
     ringMesh.rotation.x = Math.PI / 3;
     satelliteGroup.add(ringMesh);
 
-    satelliteGroup.position.set(0, 0.5, 0);
     scene.add(satelliteGroup);
 
-    // Glowing Tilted Orbital Trajectory Curve
+    // Tilted Orbital Trajectory Curve
     const orbitPoints: THREE.Vector3[] = [];
+    const orbitRadius = 4.8;
     for (let i = 0; i <= 128; i++) {
       const theta = (i / 128) * Math.PI * 2;
       orbitPoints.push(
         new THREE.Vector3(
-          Math.cos(theta) * 4.2,
-          Math.sin(theta) * 1.5 + 0.5,
-          Math.sin(theta) * 4.2
+          Math.cos(theta) * orbitRadius,
+          Math.sin(theta) * 1.6,
+          Math.sin(theta) * orbitRadius
         )
       );
     }
@@ -185,7 +264,7 @@ export const SatelliteLandingView: React.FC<SatelliteLandingViewProps> = ({
     const orbitLine = new THREE.Line(orbitGeo, orbitMat);
     scene.add(orbitLine);
 
-    // Cursor Parallax & Raycaster Setup
+    // Mouse Raycasting & Hover State
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
 
@@ -219,29 +298,29 @@ export const SatelliteLandingView: React.FC<SatelliteLandingViewProps> = ({
     domEl.addEventListener('mousemove', handleMouseMove);
     domEl.addEventListener('click', handleCanvasClick);
 
-    // Animation & Parallax Render Loop
+    // Frame Animation Loop
     let clock = new THREE.Clock();
     let animId: number;
 
     const animate = () => {
       const elapsed = clock.getElapsedTime();
 
-      // Satellite continuous orbital revolution & self-rotation
-      const orbitTheta = elapsed * 0.4;
-      satelliteGroup.position.x = Math.cos(orbitTheta) * 3.8;
-      satelliteGroup.position.z = Math.sin(orbitTheta) * 3.8;
-      satelliteGroup.position.y = 0.5 + Math.sin(orbitTheta * 1.5) * 0.4;
+      // Earth & Cloud Axis Rotations
+      earthMesh.rotation.y = elapsed * 0.06;
+      cloudMesh.rotation.y = elapsed * 0.09;
+      starField.rotation.y = elapsed * 0.003;
 
-      satelliteGroup.rotation.y = elapsed * 0.4;
-      satelliteGroup.rotation.x = Math.sin(elapsed * 0.5) * 0.15;
+      // Satellite continuous orbital revolution around Earth
+      const orbitTheta = elapsed * 0.45;
+      satelliteGroup.position.x = Math.cos(orbitTheta) * orbitRadius;
+      satelliteGroup.position.z = Math.sin(orbitTheta) * orbitRadius;
+      satelliteGroup.position.y = Math.sin(orbitTheta) * 1.6;
 
-      earthMesh.rotation.y = elapsed * 0.05;
-      ringMesh.rotation.z = elapsed * 0.8;
-      starField.rotation.y = elapsed * 0.005;
+      satelliteGroup.rotation.y = elapsed * 0.5;
 
       controls.update();
 
-      // Glow Intensity on Hover
+      // Hover Glow Intensity
       if (isHovered) {
         ringMat.opacity = 0.85 + Math.sin(elapsed * 6) * 0.15;
         beaconMat.color.setHex(0x00f0ff);
@@ -252,7 +331,6 @@ export const SatelliteLandingView: React.FC<SatelliteLandingViewProps> = ({
       // Smooth Camera Zoom Transition on Click
       if (isZooming) {
         camera.position.z -= 0.18;
-        camera.position.y -= 0.02;
         satelliteGroup.scale.multiplyScalar(1.02);
       }
 
