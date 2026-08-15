@@ -14,7 +14,7 @@ import { SpaceWeatherCenter } from './components/weather/SpaceWeatherCenter';
 import { SatelliteHealthModule } from './components/iot/SatelliteHealthModule';
 import { MissionReports } from './components/reports/MissionReports';
 import { MissionAlertCenter } from './components/alerts/MissionAlertCenter';
-import { DemoStoryGuide } from './components/demo/DemoStoryGuide';
+import { MissionControlPanel } from './components/dashboard/MissionControlPanel';
 import { SatelliteLandingView } from './components/landing/SatelliteLandingView';
 import { MissionLoginModal } from './components/auth/MissionLoginModal';
 import { InitializationSweep } from './components/auth/InitializationSweep';
@@ -72,12 +72,10 @@ export const App: React.FC = () => {
     }
   };
 
-  // Master Hackathon Demo Pipeline Trigger
   const handleSimulateCriticalEvent = () => {
     const criticalEvent = MOCK_CONJUNCTIONS[0]; // SAT-01 vs DEBRIS-482
     setSelectedConjunctionModal(criticalEvent);
 
-    // Prepend new Critical Alert
     const criticalAlert: MissionAlert = {
       id: `alert-crit-${Date.now()}`,
       severity: 'HIGH',
@@ -91,7 +89,6 @@ export const App: React.FC = () => {
     setAlerts((prev) => [criticalAlert, ...prev]);
   };
 
-  // Render Auth Flow Views Before Unlocking Dashboard
   if (authStep === 'landing') {
     return (
       <SatelliteLandingView
@@ -124,7 +121,6 @@ export const App: React.FC = () => {
     );
   }
 
-  // Authenticated Mission Control Application View
   return (
     <div className="relative min-h-screen bg-space-950 text-slate-100 flex flex-col font-sans selection:bg-cyan-500 selection:text-space-950">
       
@@ -226,7 +222,6 @@ export const App: React.FC = () => {
                   </span>
                 </div>
 
-                {/* IoT Hardware Telemetry Quick Card */}
                 <div 
                   onClick={() => setActiveTab('iot')}
                   className="p-4 rounded-2xl glass-panel-interactive border border-emerald-500/30 cursor-pointer flex items-center justify-between"
@@ -346,12 +341,9 @@ export const App: React.FC = () => {
         />
       )}
 
-      {/* Interactive Hackathon Demo Story Walkthrough Guide */}
-      <DemoStoryGuide
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        onTriggerConjunctionDetail={() => handleSelectConjunctionById('conj-01')}
-        onTriggerCopilotQuery={() => setActiveTab('copilot')}
+      {/* Authentic Mission Control Telemetry Panel (Collapsible) */}
+      <MissionControlPanel
+        onOpenConjunctionModal={() => handleSelectConjunctionById('conj-01')}
       />
 
     </div>

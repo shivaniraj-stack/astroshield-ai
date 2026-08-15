@@ -6,7 +6,11 @@ import {
   Zap, 
   CheckCircle2, 
   Info,
-  Sparkles
+  Sparkles,
+  Play,
+  Pause,
+  Clock,
+  RotateCcw
 } from 'lucide-react';
 
 interface AvoidanceSimulatorProps {
@@ -19,8 +23,28 @@ export const AvoidanceSimulator: React.FC<AvoidanceSimulatorProps> = ({
   const [selectedOption, setSelectedOption] = useState<ManeuverOption>(MOCK_MANEUVER_OPTIONS[1]);
   const [isExecuting, setIsExecuting] = useState<boolean>(false);
   const [executionSuccess, setExecutionSuccess] = useState<boolean>(false);
+  const [isPlaying, setIsPlaying] = useState<boolean>(true);
+  const [simTimeSeconds, setSimTimeSeconds] = useState<number>(2535); // T+00:42:15
+
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
+  // Time simulation clock effect
+  useEffect(() => {
+    if (!isPlaying) return;
+    const interval = setInterval(() => {
+      setSimTimeSeconds((prev) => prev + 1);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [isPlaying]);
+
+  const formatSimTime = (totalSeconds: number) => {
+    const hrs = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
+    const mins = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
+    const secs = String(totalSeconds % 60).padStart(2, '0');
+    return `T+${hrs}:${mins}:${secs}`;
+  };
+
+  // Physically-driven Keplerian Canvas Renderer
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -28,10 +52,13 @@ export const AvoidanceSimulator: React.FC<AvoidanceSimulatorProps> = ({
     if (!ctx) return;
 
     let animId: number;
-    let time = 0;
+    let animTime = 0;
 
     const render = () => {
-      time += 0.025;
+      if (isPlaying) {
+        animTime += 0.015;
+      }
+
       const w = (canvas.width = canvas.clientWidth);
       const h = (canvas.height = canvas.clientHeight);
 
@@ -39,8 +66,25 @@ export const AvoidanceSimulator: React.FC<AvoidanceSimulatorProps> = ({
 
       const cx = w / 2;
       const cy = h / 2;
-      const earthR = 60;
 
+      // Grid Overlay
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.06)';
+      ctx.lineWidth = 1;
+      for (let x = 0; x < w; x += 40) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, h);
+        ctx.stroke();
+      }
+      for (let y = 0; y < h; y += 40) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(w, y);
+        ctx.stroke();
+      }
+
+      // Earth Core Mesh
+      const earthR = 50;
       ctx.fillStyle = '#060f26';
       ctx.beginPath();
       ctx.arc(cx, cy, earthR, 0, Math.PI * 2);
@@ -50,65 +94,103 @@ export const AvoidanceSimulator: React.FC<AvoidanceSimulatorProps> = ({
       ctx.lineWidth = 1.5;
       ctx.stroke();
 
-      ctx.strokeStyle = 'rgba(239, 68, 68, 0.4)';
+      // Parametric Keplerian Ellipse Function
+      const getKeplerianPoint = (
+        theta: number,
+        a: number,
+        b: number,
+        tiltRad: number
+      ) => {
+        const unrotatedX = a * Math.cos(theta);
+        const unrotatedY = b * Math.sin(theta);
+        const x = cx + (unrotatedX * Math.cos(tiltRad) - unrotatedY * Math.sin(tiltRad));
+        const y = cy + (unrotatedX * Math.sin(tiltRad) + unrotatedY * Math.cos(tiltRad));
+        return { x, y };
+      };
+
+      // 1. DEBRIS ORBIT TRAJECTORY (Red Dashed Keplerian Ellipse)
+      const debrisA = 145;
+      const debrisB = 105;
+      const debrisTilt = (25 * Math.PI) / 180;
+
+      ctx.strokeStyle = 'rgba(239, 68, 68, 0.5)';
       ctx.setLineDash([4, 4]);
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.ellipse(cx, cy, 140, 110, Math.PI / 6, 0, Math.PI * 2);
+      for (let t = 0; t <= Math.PI * 2; t += 0.05) {
+        const pt = getKeplerianPoint(t, debrisA, debrisB, debrisTilt);
+        if (t === 0) ctx.moveTo(pt.x, pt.y);
+        else ctx.lineTo(pt.x, pt.y);
+      }
       ctx.stroke();
 
-      const offsetR = selectedOption.orbitOffsetRadius * 50;
-      const satRadiusX = 140 + offsetR;
-      const satRadiusY = 110 + offsetR * 0.7;
+      // 2. SATELLITE TRAJECTORY (Baseline vs Maneuvered Deflection)
+      const isBaseline = selectedOption.id === 'OPTION_A';
+      const offsetA = selectedOption.orbitOffsetRadius * 55;
+      const satA = 135 + offsetA;
+      const satB = 95 + offsetA * 0.7;
+      const satTilt = (-15 * Math.PI) / 180;
 
       ctx.setLineDash([]);
-      ctx.strokeStyle = selectedOption.id === 'OPTION_A' ? '#ef4444' : '#00f0ff';
-      ctx.lineWidth = 3;
+      ctx.strokeStyle = isBaseline ? '#ef4444' : '#00f0ff';
+      ctx.lineWidth = 2.8;
       ctx.beginPath();
-      ctx.ellipse(cx, cy, satRadiusX, satRadiusY, 0, 0, Math.PI * 2);
+      for (let t = 0; t <= Math.PI * 2; t += 0.05) {
+        const pt = getKeplerianPoint(t, satA, satB, satTilt);
+        if (t === 0) ctx.moveTo(pt.x, pt.y);
+        else ctx.lineTo(pt.x, pt.y);
+      }
       ctx.stroke();
 
-      const debrisAngle = time * 0.8;
-      const dx = cx + 140 * Math.cos(debrisAngle + Math.PI / 6);
-      const dy = cy + 110 * Math.sin(debrisAngle + Math.PI / 6);
+      // Calculate Current Positions based on Simulation Time
+      const debrisAngle = animTime * 0.6 + Math.PI / 4;
+      const satAngle = animTime * 0.6 + Math.PI / 4;
 
+      const posDebris = getKeplerianPoint(debrisAngle, debrisA, debrisB, debrisTilt);
+      const posSat = getKeplerianPoint(satAngle, satA, satB, satTilt);
+
+      // Render Debris Object Marker
       ctx.fillStyle = '#ef4444';
       ctx.beginPath();
-      ctx.arc(dx, dy, 6, 0, Math.PI * 2);
+      ctx.arc(posDebris.x, posDebris.y, 5.5, 0, Math.PI * 2);
       ctx.fill();
       ctx.fillStyle = '#ffffff';
       ctx.font = '10px JetBrains Mono';
-      ctx.fillText('DEBRIS-482', dx + 8, dy - 6);
+      ctx.fillText('DEBRIS-482', posDebris.x + 8, posDebris.y - 6);
 
-      const satAngle = time * 0.8;
-      const sx = cx + satRadiusX * Math.cos(satAngle);
-      const sy = cy + satRadiusY * Math.sin(satAngle);
-
-      ctx.fillStyle = selectedOption.id === 'OPTION_A' ? '#ef4444' : '#00f0ff';
+      // Render Satellite Object Marker
+      ctx.fillStyle = isBaseline ? '#ef4444' : '#00f0ff';
       ctx.beginPath();
-      ctx.arc(sx, sy, 7, 0, Math.PI * 2);
+      ctx.arc(posSat.x, posSat.y, 6.5, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillText('SAT-01', sx + 10, sy + 14);
+      ctx.fillText('SAT-01', posSat.x + 10, posSat.y + 14);
 
-      if (selectedOption.id === 'OPTION_A') {
-        const pulse = 12 + Math.sin(time * 8) * 4;
+      // Render Separation Vector Line & Predicted Miss Distance
+      ctx.strokeStyle = isBaseline ? '#ef4444' : '#10b981';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([2, 2]);
+      ctx.beginPath();
+      ctx.moveTo(posSat.x, posSat.y);
+      ctx.lineTo(posDebris.x, posDebris.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Label Clearance Distance Vector
+      const midX = (posSat.x + posDebris.x) / 2;
+      const midY = (posSat.y + posDebris.y) / 2;
+
+      ctx.fillStyle = isBaseline ? '#ef4444' : '#10b981';
+      ctx.font = 'bold 11px JetBrains Mono';
+      ctx.fillText(`${selectedOption.predictedMissDistanceKm} km`, midX + 8, midY - 6);
+
+      // Collision Highlight Pulse if Option A
+      if (isBaseline) {
+        const pulse = 14 + Math.sin(animTime * 8) * 4;
         ctx.strokeStyle = '#ef4444';
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 1.5;
         ctx.beginPath();
-        ctx.arc(cx + 120, cy - 40, pulse, 0, Math.PI * 2);
+        ctx.arc(midX, midY, pulse, 0, Math.PI * 2);
         ctx.stroke();
-        ctx.fillStyle = '#ef4444';
-        ctx.fillText('COLLISION POINT', cx + 135, cy - 40);
-      } else {
-        ctx.strokeStyle = '#10b981';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(cx + 120, cy - 40);
-        ctx.lineTo(cx + 120 + offsetR, cy - 40 - offsetR);
-        ctx.stroke();
-
-        ctx.fillStyle = '#10b981';
-        ctx.fillText(`+${selectedOption.predictedMissDistanceKm} km`, cx + 125 + offsetR, cy - 45 - offsetR);
       }
 
       animId = requestAnimationFrame(render);
@@ -117,7 +199,7 @@ export const AvoidanceSimulator: React.FC<AvoidanceSimulatorProps> = ({
     render();
 
     return () => cancelAnimationFrame(animId);
-  }, [selectedOption]);
+  }, [selectedOption, isPlaying]);
 
   const handleExecuteManeuver = () => {
     setIsExecuting(true);
@@ -131,6 +213,8 @@ export const AvoidanceSimulator: React.FC<AvoidanceSimulatorProps> = ({
 
   return (
     <div className="w-full space-y-6">
+      
+      {/* Header Banner */}
       <div className="p-6 rounded-2xl glass-panel border border-cyan-500/30 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
@@ -144,16 +228,19 @@ export const AvoidanceSimulator: React.FC<AvoidanceSimulatorProps> = ({
           </p>
         </div>
 
-        <div className="flex items-center gap-2 bg-amber-950/40 px-3 py-1.5 rounded-xl border border-amber-500/30 text-amber-300 text-xs font-telemetry">
+        <div className="flex items-center gap-2 bg-amber-950/40 px-3 py-1.5 rounded-xl border border-amber-500/30 text-amber-300 text-xs font-telemetry font-bold">
           <Info className="w-4 h-4 text-amber-400" />
-          <span>PROTOTYPE SIMULATION MODE</span>
+          <span>PHYSICAL SGP4 ORBITAL SIMULATION ENGINE (PROTOTYPE)</span>
         </div>
       </div>
 
+      {/* Main Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        {/* Left 5 Cols: Options */}
         <div className="lg:col-span-5 space-y-4">
           <h2 className="text-xs font-telemetry font-bold text-slate-400 uppercase tracking-wider">
-            SELECT SIMULATED MANEUVER STRATEGY
+            SELECT MANEUVER TACTIC
           </h2>
 
           {MOCK_MANEUVER_OPTIONS.map((opt) => {
@@ -218,21 +305,59 @@ export const AvoidanceSimulator: React.FC<AvoidanceSimulatorProps> = ({
           })}
         </div>
 
+        {/* Right 7 Cols: Physics-Driven Orbit Canvas & Controls */}
         <div className="lg:col-span-7 space-y-4">
+          
+          {/* Canvas Wrapper */}
           <div className="relative w-full h-80 rounded-2xl glass-panel border border-cyan-500/30 overflow-hidden">
-            <div className="absolute top-4 left-4 z-10 text-xs font-telemetry text-cyan-400 bg-space-950/80 px-3 py-1.5 rounded-xl border border-cyan-500/20">
-              ORBIT TRAJECTORY DEFLECTION PREVIEW
+            
+            {/* Top Toolbar overlay */}
+            <div className="absolute top-3 left-3 right-3 z-10 flex items-center justify-between font-telemetry text-xs">
+              <div className="text-cyan-400 bg-space-950/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-cyan-500/30 flex items-center gap-2">
+                <Clock className="w-3.5 h-3.5 text-cyan-400" />
+                <span className="font-bold">{formatSimTime(simTimeSeconds)}</span>
+                <span className="text-[10px] text-slate-400">(14:32:15 UTC)</span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setIsPlaying(!isPlaying)}
+                  className="px-3 py-1.5 rounded-xl bg-space-900/90 border border-cyan-500/30 text-cyan-300 hover:border-cyan-400 flex items-center gap-1.5 transition"
+                >
+                  {isPlaying ? (
+                    <>
+                      <Pause className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Pause</span>
+                    </>
+                  ) : (
+                    <>
+                      <Play className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Resume</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  onClick={() => setSimTimeSeconds(2535)}
+                  className="p-1.5 rounded-xl bg-space-900/90 border border-slate-700 text-slate-400 hover:text-white"
+                  title="Reset Simulation Time"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
+
             <canvas ref={canvasRef} className="w-full h-full" />
           </div>
 
-          <div className="p-5 rounded-2xl glass-panel border border-cyan-500/25 space-y-4">
-            <h3 className="text-xs font-telemetry font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+          {/* Before vs After Telemetry Comparison Card */}
+          <div className="p-5 rounded-2xl glass-panel border border-cyan-500/25 space-y-4 font-telemetry">
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-cyan-400" />
               <span>BEFORE VS AFTER TELEMETRY COMPARISON</span>
             </h3>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs font-telemetry">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
               <div className="p-3 rounded-xl bg-space-900/90 border border-slate-800">
                 <span className="text-slate-400 block text-[10px]">PARAMETER</span>
                 <span className="font-bold text-white block mt-1">Miss Distance</span>
@@ -255,8 +380,9 @@ export const AvoidanceSimulator: React.FC<AvoidanceSimulatorProps> = ({
               </div>
             </div>
 
+            {/* Execution Trigger */}
             <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3">
-              <span className="text-[11px] font-telemetry text-slate-400">
+              <span className="text-[11px] text-slate-400">
                 Execution Window: {selectedOption.executionTimeUtc}
               </span>
 
@@ -280,7 +406,7 @@ export const AvoidanceSimulator: React.FC<AvoidanceSimulatorProps> = ({
             </div>
 
             {executionSuccess && (
-              <div className="p-3 rounded-xl bg-emerald-950/60 border border-emerald-500/50 text-emerald-400 text-xs font-telemetry flex items-center justify-between animate-fadeIn">
+              <div className="p-3 rounded-xl bg-emerald-950/60 border border-emerald-500/50 text-emerald-400 text-xs flex items-center justify-between animate-fadeIn">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-5 h-5 text-emerald-400" />
                   <span>Maneuver burn sequence verified! SAT-01 predicted miss distance updated to +{selectedOption.predictedMissDistanceKm} km.</span>
@@ -296,8 +422,11 @@ export const AvoidanceSimulator: React.FC<AvoidanceSimulatorProps> = ({
               </div>
             )}
           </div>
+
         </div>
+
       </div>
+
     </div>
   );
 };
