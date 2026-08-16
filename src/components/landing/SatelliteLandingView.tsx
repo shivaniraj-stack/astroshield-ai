@@ -7,7 +7,7 @@ interface SatelliteLandingViewProps {
   onEnterMissionControl: () => void;
 }
 
-// Procedural High-Res Equirectangular Earth Texture Generator (100% Offline Reliable)
+// Procedural High-Res Equirectangular Dark-Blue Futuristic Earth Texture Generator
 const generateEarthTexture = (): THREE.CanvasTexture => {
   const canvas = document.createElement('canvas');
   canvas.width = 2048;
@@ -15,21 +15,29 @@ const generateEarthTexture = (): THREE.CanvasTexture => {
   const ctx = canvas.getContext('2d');
   if (!ctx) return new THREE.CanvasTexture(canvas);
 
-  // 1. Ocean Base (Deep Oceanic Blue gradient)
+  // 1. Deep Midnight Navy Ocean Base Gradient (Dark Navy)
   const oceanGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-  oceanGrad.addColorStop(0, '#06132b');
-  oceanGrad.addColorStop(0.5, '#0a2550');
-  oceanGrad.addColorStop(1, '#06132b');
+  oceanGrad.addColorStop(0, '#020612');
+  oceanGrad.addColorStop(0.5, '#05132d');
+  oceanGrad.addColorStop(1, '#020612');
   ctx.fillStyle = oceanGrad;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Helper to draw realistic landmasses
-  const drawLandmass = (cx: number, cy: number, rx: number, ry: number, color: string) => {
-    ctx.fillStyle = color;
+  // Helper to draw dark navy/royal blue landmasses
+  const drawLandmass = (cx: number, cy: number, rx: number, ry: number, baseColor: string, contourColor: string) => {
+    // Subtle dark blue continental shelf boundary
+    ctx.fillStyle = contourColor;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, rx * 1.05, ry * 1.05, Math.PI / 12, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Main continent body (Dark Navy / Dark Royal Blue)
+    ctx.fillStyle = baseColor;
     ctx.beginPath();
     ctx.ellipse(cx, cy, rx, ry, Math.PI / 12, 0, Math.PI * 2);
     ctx.fill();
 
+    // Sub-landmass detail clusters
     for (let i = 0; i < 8; i++) {
       const angle = (i / 8) * Math.PI * 2;
       const subX = cx + Math.cos(angle) * (rx * 0.7);
@@ -40,18 +48,26 @@ const generateEarthTexture = (): THREE.CanvasTexture => {
     }
   };
 
-  // Continents: North America, South America, Eurasia, Africa, Australia
-  drawLandmass(500, 320, 220, 140, '#1b4332'); // North America
-  drawLandmass(650, 650, 130, 200, '#2d6a4f'); // South America
-  drawLandmass(1250, 300, 350, 160, '#2d6a4f'); // Eurasia
-  drawLandmass(1100, 520, 180, 210, '#b5838d'); // Africa
-  drawLandmass(1650, 680, 140, 110, '#d4a373'); // Australia
-  drawLandmass(1400, 420, 120, 90, '#1b4332');  // SE Asia
+  // Continents: Dark navy and dark royal blue tones only
+  drawLandmass(500, 320, 220, 140, '#0a2044', '#06132d'); // North America
+  drawLandmass(650, 650, 130, 200, '#0e2954', '#06132d'); // South America
+  drawLandmass(1250, 300, 350, 160, '#0f2c59', '#06132d'); // Eurasia
+  drawLandmass(1100, 520, 180, 210, '#081a38', '#040d21'); // Africa
+  drawLandmass(1650, 680, 140, 110, '#113366', '#06132d'); // Australia
+  drawLandmass(1400, 420, 120, 90, '#0a2044', '#06132d');  // SE Asia
 
-  // Polar Ice Caps
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, canvas.width, 70); // North Pole
-  ctx.fillRect(0, canvas.height - 80, canvas.width, 80); // South Pole
+  // Polar Ice Caps (Dark navy ice shading, NO bright or white colors)
+  const poleGradN = ctx.createLinearGradient(0, 0, 0, 70);
+  poleGradN.addColorStop(0, '#133563');
+  poleGradN.addColorStop(1, 'rgba(19, 53, 99, 0.1)');
+  ctx.fillStyle = poleGradN;
+  ctx.fillRect(0, 0, canvas.width, 70);
+
+  const poleGradS = ctx.createLinearGradient(0, canvas.height - 80, 0, canvas.height);
+  poleGradS.addColorStop(0, 'rgba(19, 53, 99, 0.1)');
+  poleGradS.addColorStop(1, '#133563');
+  ctx.fillStyle = poleGradS;
+  ctx.fillRect(0, canvas.height - 80, canvas.width, 80);
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = THREE.RepeatWrapping;
@@ -59,7 +75,7 @@ const generateEarthTexture = (): THREE.CanvasTexture => {
   return texture;
 };
 
-// Procedural Cloud Formation Texture Generator
+// Procedural Dark Blue Atmospheric Trail Texture Generator
 const generateCloudTexture = (): THREE.CanvasTexture => {
   const canvas = document.createElement('canvas');
   canvas.width = 1024;
@@ -70,7 +86,8 @@ const generateCloudTexture = (): THREE.CanvasTexture => {
   ctx.fillStyle = 'rgba(0, 0, 0, 0)';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+  // Soft dark blue atmospheric wisps
+  ctx.fillStyle = 'rgba(14, 116, 144, 0.12)';
   for (let i = 0; i < 90; i++) {
     const x = Math.random() * canvas.width;
     const y = Math.random() * canvas.height;
@@ -136,49 +153,50 @@ export const SatelliteLandingView: React.FC<SatelliteLandingViewProps> = ({
     const starField = new THREE.Points(starGeo, starMat);
     scene.add(starField);
 
-    // Realistic Sun Lighting (Day/Night Terminator)
-    const ambientLight = new THREE.AmbientLight(0x0b172a, 1.4);
+    // Deep Dark Blue Space Lighting
+    const ambientLight = new THREE.AmbientLight(0x030d1c, 1.2);
     scene.add(ambientLight);
 
-    const sunLight = new THREE.DirectionalLight(0xffffff, 4.0);
+    const sunLight = new THREE.DirectionalLight(0x93c5fd, 2.2);
     sunLight.position.set(18, 12, 16);
     scene.add(sunLight);
 
-    const oceanGlowLight = new THREE.DirectionalLight(0x00f0ff, 1.5);
+    const oceanGlowLight = new THREE.DirectionalLight(0x0284c7, 0.8);
     oceanGlowLight.position.set(-18, -8, -12);
     scene.add(oceanGlowLight);
 
-    // 1. Large Photorealistic 3D Earth Globe (Positioned in Lower Viewport Safe Zone)
+    // 1. Stealth Dark Blue 3D Earth Globe
     const earthRadius = 5.2;
     const earthTexture = generateEarthTexture();
     const earthGeo = new THREE.SphereGeometry(earthRadius, 64, 64);
     const earthMat = new THREE.MeshPhongMaterial({
       map: earthTexture,
-      specular: 0x00f0ff,
-      shininess: 25,
-      emissive: 0x020817,
+      specular: 0x0284c7,
+      shininess: 15,
+      emissive: 0x010816,
     });
     const earthMesh = new THREE.Mesh(earthGeo, earthMat);
     scene.add(earthMesh);
 
-    // 2. Independent Cloud Layer Sphere
+    // 2. Dark Blue Atmospheric Wisps
     const cloudTexture = generateCloudTexture();
     const cloudGeo = new THREE.SphereGeometry(earthRadius * 1.02, 64, 64);
     const cloudMat = new THREE.MeshPhongMaterial({
       map: cloudTexture,
+      color: 0x0284c7,
       transparent: true,
-      opacity: 0.45,
+      opacity: 0.25,
       blending: THREE.NormalBlending,
     });
     const cloudMesh = new THREE.Mesh(cloudGeo, cloudMat);
     scene.add(cloudMesh);
 
-    // 3. Thin Atmospheric Rim Halo
+    // 3. Subtle Dark Blue Atmospheric Rim Halo
     const atmosGeo = new THREE.SphereGeometry(earthRadius * 1.045, 64, 64);
     const atmosMat = new THREE.MeshBasicMaterial({
-      color: 0x00f0ff,
+      color: 0x0284c7,
       transparent: true,
-      opacity: 0.18,
+      opacity: 0.12,
       side: THREE.BackSide,
     });
     const atmosMesh = new THREE.Mesh(atmosGeo, atmosMat);

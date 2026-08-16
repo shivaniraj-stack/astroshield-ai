@@ -19,7 +19,7 @@ interface OrbitalEarthViewProps {
   onOpenSimulator?: (satId: string) => void;
 }
 
-// Procedural Photorealistic Dark-Blue Earth Surface Texture (100% Offline Reliable)
+// Procedural High-Res Equirectangular Blue-Only Futuristic Earth Texture Generator
 const generateRealisticEarthTexture = (): THREE.CanvasTexture => {
   const canvas = document.createElement('canvas');
   canvas.width = 2048;
@@ -27,21 +27,29 @@ const generateRealisticEarthTexture = (): THREE.CanvasTexture => {
   const ctx = canvas.getContext('2d');
   if (!ctx) return new THREE.CanvasTexture(canvas);
 
-  // 1. Deep Oceanic Dark-Blue Base Gradient
+  // 1. Deep Midnight Navy Ocean Base Gradient
   const oceanGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-  oceanGrad.addColorStop(0, '#040d1a');
-  oceanGrad.addColorStop(0.5, '#0a2342');
-  oceanGrad.addColorStop(1, '#040d1a');
+  oceanGrad.addColorStop(0, '#020612');
+  oceanGrad.addColorStop(0.5, '#05132d');
+  oceanGrad.addColorStop(1, '#020612');
   ctx.fillStyle = oceanGrad;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Helper to draw landmasses
-  const drawLandmass = (cx: number, cy: number, rx: number, ry: number, color: string) => {
-    ctx.fillStyle = color;
+  // Helper to draw futuristic monochrome blue landmasses
+  const drawLandmass = (cx: number, cy: number, rx: number, ry: number, baseColor: string, contourColor: string) => {
+    // Outer dark blue continental shelf boundary
+    ctx.fillStyle = contourColor;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, rx * 1.06, ry * 1.06, Math.PI / 12, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Main continent body (Dark Royal / Medium Blue)
+    ctx.fillStyle = baseColor;
     ctx.beginPath();
     ctx.ellipse(cx, cy, rx, ry, Math.PI / 12, 0, Math.PI * 2);
     ctx.fill();
 
+    // Sub-landmass detail clusters
     for (let i = 0; i < 8; i++) {
       const angle = (i / 8) * Math.PI * 2;
       const subX = cx + Math.cos(angle) * (rx * 0.7);
@@ -52,18 +60,26 @@ const generateRealisticEarthTexture = (): THREE.CanvasTexture => {
     }
   };
 
-  // Continents: North America, South America, Eurasia, Africa, Australia
-  drawLandmass(500, 320, 220, 140, '#153b27'); // North America
-  drawLandmass(650, 650, 130, 200, '#1e5238'); // South America
-  drawLandmass(1250, 300, 350, 160, '#1e5238'); // Eurasia
-  drawLandmass(1100, 520, 180, 210, '#8c634b'); // Africa
-  drawLandmass(1650, 680, 140, 110, '#b88b4a'); // Australia
-  drawLandmass(1400, 420, 120, 90, '#153b27');  // SE Asia
+  // Continents: Rendered strictly in dark navy and royal blue shades (NO green, brown, red, or white)
+  drawLandmass(500, 320, 220, 140, '#0c254c', '#06132d'); // North America
+  drawLandmass(650, 650, 130, 200, '#10305e', '#06132d'); // South America
+  drawLandmass(1250, 300, 350, 160, '#12376b', '#06132d'); // Eurasia
+  drawLandmass(1100, 520, 180, 210, '#091e3d', '#040d21'); // Africa
+  drawLandmass(1650, 680, 140, 110, '#143c75', '#06132d'); // Australia
+  drawLandmass(1400, 420, 120, 90, '#0c254c', '#06132d');  // SE Asia
 
-  // Polar Caps
-  ctx.fillStyle = '#e2e8f0';
-  ctx.fillRect(0, 0, canvas.width, 70); // North Pole
-  ctx.fillRect(0, canvas.height - 80, canvas.width, 80); // South Pole
+  // Polar Caps (Dark navy ice shading)
+  const poleGradN = ctx.createLinearGradient(0, 0, 0, 70);
+  poleGradN.addColorStop(0, '#193f73');
+  poleGradN.addColorStop(1, 'rgba(25, 63, 115, 0.1)');
+  ctx.fillStyle = poleGradN;
+  ctx.fillRect(0, 0, canvas.width, 70);
+
+  const poleGradS = ctx.createLinearGradient(0, canvas.height - 80, 0, canvas.height);
+  poleGradS.addColorStop(0, 'rgba(25, 63, 115, 0.1)');
+  poleGradS.addColorStop(1, '#193f73');
+  ctx.fillStyle = poleGradS;
+  ctx.fillRect(0, canvas.height - 80, canvas.width, 80);
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = THREE.RepeatWrapping;
@@ -93,9 +109,9 @@ export const OrbitalEarthView: React.FC<OrbitalEarthViewProps> = ({
     const scene = new THREE.Scene();
     scene.fog = new THREE.FogExp2(0x030712, 0.005);
 
-    // Uncropped complete Earth framing (camera at Z=18, FOV=45)
+    // Uncropped complete Earth and large orbit framing (camera at Z=19.5, FOV=45)
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
-    camera.position.set(0, 3.5, 18);
+    camera.position.set(0, 3.8, 19.5);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(width, height);
@@ -108,7 +124,7 @@ export const OrbitalEarthView: React.FC<OrbitalEarthViewProps> = ({
     controls.dampingFactor = 0.05;
     controls.rotateSpeed = 0.8;
     controls.zoomSpeed = 1.0;
-    controls.minDistance = 6.0;
+    controls.minDistance = 5.0;
     controls.maxDistance = 45.0;
     controls.target.set(0, 0, 0);
 
@@ -123,65 +139,65 @@ export const OrbitalEarthView: React.FC<OrbitalEarthViewProps> = ({
       );
     }
     starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starCoords, 3));
-    const starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.7, transparent: true, opacity: 0.85 });
+    const starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.6, transparent: true, opacity: 0.85 });
     const starField = new THREE.Points(starGeo, starMat);
     scene.add(starField);
 
-    // Realistic Lighting with Natural Day/Night Terminator
-    const ambientLight = new THREE.AmbientLight(0x0a1628, 1.4);
+    // Controlled Blue Space Lighting
+    const ambientLight = new THREE.AmbientLight(0x030d1c, 1.4);
     scene.add(ambientLight);
 
-    const sunLight = new THREE.DirectionalLight(0xffffff, 3.8);
+    const sunLight = new THREE.DirectionalLight(0x93c5fd, 2.6);
     sunLight.position.set(16, 12, 14);
     scene.add(sunLight);
 
-    const oceanGlowLight = new THREE.DirectionalLight(0x00f0ff, 1.2);
+    const oceanGlowLight = new THREE.DirectionalLight(0x0284c7, 1.0);
     oceanGlowLight.position.set(-16, -8, -12);
     scene.add(oceanGlowLight);
 
-    // 4. Realistic Dark-Blue Earth Globe (Centered at 0,0,0)
+    // 4. Simple Blue 3D Earth Globe (Centered at 0,0,0)
     const earthRadius = 3.2;
     const earthTexture = generateRealisticEarthTexture();
     const earthGeo = new THREE.SphereGeometry(earthRadius, 64, 64);
     const earthMat = new THREE.MeshPhongMaterial({
       map: earthTexture,
-      specular: 0x00f0ff,
-      shininess: 25,
-      emissive: 0x020a1c,
+      specular: 0x0284c7,
+      shininess: 20,
+      emissive: 0x01091a,
     });
     const earthMesh = new THREE.Mesh(earthGeo, earthMat);
     scene.add(earthMesh);
 
-    // Subtle Grid Overlay
+    // Subtle Tech Grid Overlay
     const gridGeo = new THREE.SphereGeometry(earthRadius * 1.002, 36, 18);
     const gridMat = new THREE.MeshBasicMaterial({
       color: 0x00f0ff,
       wireframe: true,
       transparent: true,
-      opacity: 0.1,
+      opacity: 0.06,
     });
     const gridMesh = new THREE.Mesh(gridGeo, gridMat);
     earthMesh.add(gridMesh);
 
-    // Thin Atmospheric Glow Halo
-    const atmosGeo = new THREE.SphereGeometry(earthRadius * 1.05, 64, 64);
+    // Soft Blue Atmospheric Rim Halo
+    const atmosGeo = new THREE.SphereGeometry(earthRadius * 1.045, 64, 64);
     const atmosMat = new THREE.MeshBasicMaterial({
-      color: 0x00f0ff,
+      color: 0x0284c7,
       transparent: true,
-      opacity: 0.18,
+      opacity: 0.14,
       side: THREE.BackSide,
     });
     const atmosMesh = new THREE.Mesh(atmosGeo, atmosMat);
     scene.add(atmosMesh);
 
-    // 5. Prominent Primary Orbital Trajectory Ring (Radius 9.5) Extending Widely Across Viewport
+    // 5. PROMINENT LARGE PRIMARY 3D ORBITAL RING (Radius 9.5) Extending Widely Across Viewport
     const primaryOrbitPts: THREE.Vector3[] = [];
     const primaryR = 9.5;
-    for (let i = 0; i <= 128; i++) {
-      const theta = (i / 128) * Math.PI * 2;
+    for (let i = 0; i <= 144; i++) {
+      const theta = (i / 144) * Math.PI * 2;
       primaryOrbitPts.push(new THREE.Vector3(
         Math.cos(theta) * primaryR,
-        Math.sin(theta) * 2.8,
+        Math.sin(theta) * 3.2,
         Math.sin(theta) * primaryR
       ));
     }
@@ -189,24 +205,27 @@ export const OrbitalEarthView: React.FC<OrbitalEarthViewProps> = ({
     const primaryOrbitMat = new THREE.LineBasicMaterial({
       color: 0x00f0ff,
       transparent: true,
-      opacity: 0.6,
+      opacity: 0.75,
     });
     const primaryOrbitLine = new THREE.Line(primaryOrbitGeo, primaryOrbitMat);
     scene.add(primaryOrbitLine);
 
-    // 6. Active Satellites & Reduced Debris (12 Representative Objects to Eliminate Clutter)
-    const satelliteMeshes: { object: SpaceObject; mesh: THREE.Mesh; orbitLine: THREE.Line }[] = [];
+    // 6. Active Satellites & 15 Vivid Red Dot Space Debris Particles
+    const satelliteMeshes: { object: SpaceObject; mesh: THREE.Object3D; orbitLine: THREE.Line }[] = [];
 
-    // Filter to 12 representative debris objects to prevent visual clutter
-    const representativeDebris: SpaceObject[] = MOCK_DEBRIS.slice(0, 12).map((deb, i) => ({
+    // Vivid red, crimson, and bright amber color palette for debris dots
+    const DEBRIS_PALETTE = [0xff3344, 0xef4444, 0xf97316, 0xf43f5e, 0xff5555];
+
+    // All 15 debris objects naturally spaced across 3D orbital planes around Earth
+    const representativeDebris: SpaceObject[] = MOCK_DEBRIS.map((deb, i) => ({
       ...deb,
-      orbitRadius: 4.6 + (i % 8) * 0.7,
-      inclinationDeg: 15 + (i * 11) % 75,
+      orbitRadius: 4.3 + (i % 8) * 0.58,
+      inclinationDeg: 12 + (i * 21) % 80,
     }));
 
-    // Render Revolving Satellites
+    // Render 5 Revolving Satellites (3D Satellite Models with solar panel wings)
     MOCK_SATELLITES.forEach((sat, idx) => {
-      const orbitR = 5.0 + idx * 1.2;
+      const orbitR = 5.2 + idx * 1.3;
       const tilt = (sat.inclinationDeg * Math.PI) / 180;
 
       const pts: THREE.Vector3[] = [];
@@ -222,51 +241,87 @@ export const OrbitalEarthView: React.FC<OrbitalEarthViewProps> = ({
       const oMat = new THREE.LineBasicMaterial({
         color: selectedObject?.id === sat.id ? 0x00f0ff : 0x0284c7,
         transparent: true,
-        opacity: selectedObject?.id === sat.id ? 0.95 : 0.45,
+        opacity: selectedObject?.id === sat.id ? 0.9 : 0.45,
       });
       const oLine = new THREE.Line(oGeo, oMat);
       scene.add(oLine);
 
-      const sGeo = new THREE.SphereGeometry(0.12, 16, 16);
-      const sMat = new THREE.MeshStandardMaterial({
+      // Create 3D Satellite Model Group
+      const satGroup = new THREE.Group();
+      satGroup.userData = { spaceObject: sat };
+
+      // Central Satellite Bus Body
+      const bodyGeo = new THREE.BoxGeometry(0.22, 0.22, 0.32);
+      const bodyMat = new THREE.MeshStandardMaterial({
+        color: selectedObject?.id === sat.id ? 0x00f0ff : 0x38bdf8,
+        metalness: 0.8,
+        roughness: 0.2,
+        emissive: 0x0284c7,
+        emissiveIntensity: 0.5,
+      });
+      const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
+      bodyMesh.userData = { spaceObject: sat };
+      satGroup.add(bodyMesh);
+
+      // Solar Panel Wings (Cyan/Blue glowing solar arrays extending left & right)
+      const wingGeo = new THREE.BoxGeometry(0.95, 0.03, 0.22);
+      const wingMat = new THREE.MeshStandardMaterial({
         color: 0x00f0ff,
         emissive: 0x00f0ff,
-        emissiveIntensity: selectedObject?.id === sat.id ? 0.9 : 0.5,
+        emissiveIntensity: selectedObject?.id === sat.id ? 0.95 : 0.65,
+        metalness: 0.9,
       });
-      const sMesh = new THREE.Mesh(sGeo, sMat);
-      sMesh.userData = { spaceObject: sat };
-      scene.add(sMesh);
+      const wingMesh = new THREE.Mesh(wingGeo, wingMat);
+      wingMesh.userData = { spaceObject: sat };
+      satGroup.add(wingMesh);
 
-      satelliteMeshes.push({ object: sat, mesh: sMesh, orbitLine: oLine });
+      // Communication Dish Cone
+      const dishGeo = new THREE.ConeGeometry(0.08, 0.12, 12);
+      const dishMat = new THREE.MeshStandardMaterial({ color: 0xe0f2fe, metalness: 0.9 });
+      const dishMesh = new THREE.Mesh(dishGeo, dishMat);
+      dishMesh.rotation.x = Math.PI / 2;
+      dishMesh.position.z = 0.18;
+      dishMesh.userData = { spaceObject: sat };
+      satGroup.add(dishMesh);
+
+      scene.add(satGroup);
+      satelliteMeshes.push({ object: sat, mesh: satGroup, orbitLine: oLine });
     });
 
-    // Render 12 Debris Objects (Clean, De-cluttered Representative Markers)
+    // Render 14 Clearly Visible Glowing Debris Particles (Orange, Red, Amber Tones)
     const debrisMeshes: { object: SpaceObject; mesh: THREE.Mesh; orbitLine: THREE.Line }[] = [];
 
     representativeDebris.forEach((deb, idx) => {
-      const orbitR = 4.6 + (idx % 8) * 0.7;
+      const orbitR = 4.4 + (idx % 7) * 0.65;
       const tilt = (deb.inclinationDeg * Math.PI) / 180;
+      const dColor = DEBRIS_PALETTE[idx % DEBRIS_PALETTE.length];
 
       const pts: THREE.Vector3[] = [];
       for (let i = 0; i <= 64; i++) {
         const theta = (i / 64) * Math.PI * 2;
         pts.push(new THREE.Vector3(
           Math.cos(theta) * orbitR,
-          Math.sin(theta) * Math.sin(tilt) * orbitR * 0.5,
+          Math.sin(theta) * Math.sin(tilt) * orbitR * 0.55,
           Math.sin(theta) * orbitR
         ));
       }
       const oGeo = new THREE.BufferGeometry().setFromPoints(pts);
       const oMat = new THREE.LineBasicMaterial({
-        color: 0xef4444,
+        color: dColor,
         transparent: true,
-        opacity: 0.3,
+        opacity: 0.15,
       });
       const oLine = new THREE.Line(oGeo, oMat);
       scene.add(oLine);
 
-      const dGeo = new THREE.SphereGeometry(0.07, 12, 12);
-      const dMat = new THREE.MeshBasicMaterial({ color: 0xef4444 });
+      // Glowing Debris Particle Sphere (Clearly visible against dark space background)
+      const dGeo = new THREE.SphereGeometry(0.09, 16, 16);
+      const dMat = new THREE.MeshStandardMaterial({
+        color: dColor,
+        emissive: dColor,
+        emissiveIntensity: 0.85,
+        roughness: 0.3,
+      });
       const dMesh = new THREE.Mesh(dGeo, dMat);
       dMesh.userData = { spaceObject: deb };
       scene.add(dMesh);
@@ -287,7 +342,7 @@ export const OrbitalEarthView: React.FC<OrbitalEarthViewProps> = ({
     const convergenceLine = new THREE.Line(convergenceGeo, convergenceMat);
     scene.add(convergenceLine);
 
-    // Raycasting Object Selection
+    // Raycasting Object Selection for 3D Satellites and Debris
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
 
@@ -297,16 +352,25 @@ export const OrbitalEarthView: React.FC<OrbitalEarthViewProps> = ({
       mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
 
       raycaster.setFromCamera(mouse, camera);
-      const allTargets = [
-        ...satelliteMeshes.map((m) => m.mesh),
-        ...debrisMeshes.map((m) => m.mesh),
-      ];
-      const intersects = raycaster.intersectObjects(allTargets);
+
+      const targets: THREE.Object3D[] = [];
+      satelliteMeshes.forEach((s) => {
+        s.mesh.traverse((child) => {
+          if (child instanceof THREE.Mesh) targets.push(child);
+        });
+      });
+      debrisMeshes.forEach((d) => targets.push(d.mesh));
+
+      const intersects = raycaster.intersectObjects(targets);
 
       if (intersects.length > 0) {
-        const obj = intersects[0].object.userData.spaceObject as SpaceObject;
-        if (obj) {
-          setSelectedObject(obj);
+        let hitObj = intersects[0].object;
+        let spaceObj = hitObj.userData?.spaceObject as SpaceObject;
+        if (!spaceObj && hitObj.parent?.userData?.spaceObject) {
+          spaceObj = hitObj.parent.userData.spaceObject as SpaceObject;
+        }
+        if (spaceObj) {
+          setSelectedObject(spaceObj);
         }
       }
     };
@@ -350,7 +414,7 @@ export const OrbitalEarthView: React.FC<OrbitalEarthViewProps> = ({
 
       // Satellite orbital revolution
       satelliteMeshes.forEach(({ object, mesh }, idx) => {
-        const orbitR = 5.0 + idx * 1.2;
+        const orbitR = 5.2 + idx * 1.3;
         const tilt = (object.inclinationDeg * Math.PI) / 180;
         const speed = 0.35 + idx * 0.06;
         const theta = elapsed * speed + idx;
@@ -361,15 +425,15 @@ export const OrbitalEarthView: React.FC<OrbitalEarthViewProps> = ({
         mesh.visible = true;
       });
 
-      // Debris orbital revolution (12 objects)
+      // Debris orbital revolution (12 visible glowing objects)
       debrisMeshes.forEach(({ object, mesh, orbitLine }, idx) => {
-        const orbitR = 4.6 + (idx % 8) * 0.7;
+        const orbitR = 4.5 + (idx % 6) * 0.75;
         const tilt = (object.inclinationDeg * Math.PI) / 180;
-        const speed = 0.4 + (idx % 5) * 0.05;
-        const theta = elapsed * speed + idx * 0.5;
+        const speed = 0.25 + (idx % 4) * 0.04;
+        const theta = elapsed * speed + idx * 0.7;
 
         mesh.position.x = Math.cos(theta) * orbitR;
-        mesh.position.y = Math.sin(theta) * Math.sin(tilt) * orbitR * 0.5;
+        mesh.position.y = Math.sin(theta) * Math.sin(tilt) * orbitR * 0.55;
         mesh.position.z = Math.sin(theta) * orbitR;
 
         mesh.visible = showDebris;
@@ -464,7 +528,7 @@ export const OrbitalEarthView: React.FC<OrbitalEarthViewProps> = ({
           }`}
         >
           <Layers className="w-3.5 h-3.5" />
-          <span>DEBRIS (12)</span>
+          <span>DEBRIS (15)</span>
         </button>
 
         <button
